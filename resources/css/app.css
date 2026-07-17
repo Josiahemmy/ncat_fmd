@@ -1,0 +1,140 @@
+/* ------------------------------------------------------------------ */
+/*  Self-hosted fonts (no external CDN — CSP-friendly, works offline)  */
+/*  Plus Jakarta Sans → display/headings · Inter → body/UI            */
+/* ------------------------------------------------------------------ */
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        /* Semantic tokens — HSL channels (see tailwind.config.js).
+           Values map directly to the NCAT palette. */
+        --background: 210 40% 98%;        /* Mist canvas            */
+        --foreground: 223 17% 8%;         /* Ink                    */
+
+        --card: 0 0% 100%;
+        --card-foreground: 223 17% 8%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 223 17% 8%;
+
+        --primary: 198 100% 44%;          /* Aviation Blue #009DE0  */
+        --primary-foreground: 0 0% 100%;
+
+        --secondary: 233 72% 22%;         /* Deep Navy #101A62      */
+        --secondary-foreground: 0 0% 100%;
+
+        --muted: 210 40% 96%;
+        --muted-foreground: 218 9% 49%;   /* Steel #737B89          */
+
+        --accent: 200 65% 95%;            /* soft blue hover surface */
+        --accent-foreground: 233 72% 22%;
+
+        --destructive: 4 74% 49%;         /* Error #D92D20          */
+        --destructive-foreground: 0 0% 100%;
+
+        --success: 153 73% 31%;           /* #168A55                */
+        --success-foreground: 0 0% 100%;
+
+        --warning: 38 92% 50%;            /* #F59E0B                */
+        --warning-foreground: 30 40% 12%;
+
+        --info: 207 80% 44%;              /* #1677C8                */
+        --info-foreground: 0 0% 100%;
+
+        --border: 218 23% 88%;            /* Silver #D9DEE7         */
+        --input: 218 23% 88%;
+        --ring: 198 100% 44%;             /* Aviation Blue focus    */
+
+        /* Dark-navy sidebar surface */
+        --sidebar: 233 68% 15%;
+        --sidebar-foreground: 210 40% 96%;
+        --sidebar-muted: 218 22% 66%;
+        --sidebar-accent: 194 100% 50%;   /* Aviation Cyan          */
+        --sidebar-border: 231 45% 26%;
+
+        --radius: 0.85rem;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    html {
+        -webkit-text-size-adjust: 100%;
+        scroll-behavior: smooth;
+    }
+
+    body {
+        @apply bg-background text-foreground font-sans antialiased;
+        font-feature-settings: 'cv11', 'ss01';
+        text-rendering: optimizeLegibility;
+    }
+
+    h1, h2, h3, h4, h5 {
+        @apply font-display tracking-tight text-ncat-navy;
+    }
+
+    /* Consistent premium focus ring across the app */
+    :focus-visible {
+        @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    }
+
+    /* Refined scrollbars */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb {
+        @apply rounded-full bg-ncat-silver;
+        border: 3px solid transparent;
+        background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { @apply bg-ncat-steel; }
+}
+
+@layer components {
+    /* Glassmorphic surface used by Card glass variant + login panel */
+    .glass-panel {
+        @apply border border-white/40 bg-white/70 shadow-glass backdrop-blur-xl;
+    }
+    .glass-panel-dark {
+        @apply border border-white/10 bg-white/[0.06] shadow-glass-lg backdrop-blur-xl;
+    }
+
+    /* Skeleton shimmer sweep */
+    .skeleton-shimmer {
+        @apply relative overflow-hidden bg-muted;
+    }
+    .skeleton-shimmer::after {
+        @apply absolute inset-0 -translate-x-full animate-shimmer;
+        content: '';
+        background-image: linear-gradient(
+            90deg,
+            transparent,
+            hsl(0 0% 100% / 0.65),
+            transparent
+        );
+    }
+}
+
+@layer utilities {
+    /* Respect reduced-motion for all decorative animation */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}

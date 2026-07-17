@@ -1,0 +1,13 @@
+{
+    "name": "NCAT FMD Inventory",
+    "short_name": "NCAT FMD",
+    "description": "NCAT Flight Maintenance Department — Inventory & Stores Management System",
+    "icons": [
+        { "src": "/brand/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/brand/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+    ],
+    "theme_color": "#101A62",
+    "background_color": "#050A23",
+    "display": "standalone",
+    "start_url": "/dashboard"
+}
