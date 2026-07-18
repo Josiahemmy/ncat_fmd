@@ -103,8 +103,10 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -lc "
             set -e
             cd '$DEPLOY_PATH'
-            php artisan migrate --force
+            # Clear caches FIRST so migrate reads the live .env (not a stale
+            # config cache that could point at the wrong DB connection).
             php artisan optimize:clear
+            php artisan migrate --force
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
