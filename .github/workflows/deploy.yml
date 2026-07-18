@@ -75,25 +75,24 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Rsync application to server
+      # Shared cPanel hosts usually lack `rsync`, so stream a gzipped tar over
+      # SSH and extract on the server (only needs `tar`, which is always
+      # present). `.env` is excluded so the server's own .env is never touched;
+      # the storage/ skeleton is included so its framework dirs exist.
+      - name: Deploy application to server (tar over SSH)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='node_modules' \
-            --exclude='tests' \
-            --exclude='.env' \
-            --exclude='storage/app' \
-            --exclude='storage/framework/cache/data' \
-            --exclude='storage/framework/sessions' \
-            --exclude='storage/framework/views' \
-            --exclude='storage/logs' \
-            ./ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$DEPLOY_PATH'"
+          tar czf - \
+            --exclude='./.git' \
+            --exclude='./.github' \
+            --exclude='./node_modules' \
+            --exclude='./tests' \
+            --exclude='./.env' \
+            . | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "tar xzf - -C '$DEPLOY_PATH'"
 
       - name: Post-deploy — migrate, cache, storage link
         env:
