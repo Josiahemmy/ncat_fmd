@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Wordmark } from '@/Components/brand/Wordmark';
 import { navGroups, navItems } from '@/Components/app/nav';
+import { usePermissions } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
 function isActive(routeName) {
@@ -19,6 +20,14 @@ function isActive(routeName) {
  * `onNavigate` lets the mobile drawer close on selection.
  */
 export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate }) {
+    const { can, canAny } = usePermissions();
+
+    const isVisible = (item) => {
+        if (item.permission) return can(item.permission);
+        if (item.permissionsAny) return canAny(item.permissionsAny);
+        return true;
+    };
+
     return (
         <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
             {/* Brand + collapse control */}
@@ -49,7 +58,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate }) {
             {/* Nav */}
             <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
                 {navGroups.map((group) => {
-                    const items = navItems.filter((i) => i.group === group.key);
+                    const items = navItems.filter((i) => i.group === group.key && isVisible(i));
                     if (!items.length) return null;
                     return (
                         <div key={group.key}>

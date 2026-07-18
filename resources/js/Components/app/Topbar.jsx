@@ -96,7 +96,7 @@ export function Topbar({ onOpenSidebar }) {
                             </DropdownMenu.Item>
                             <DropdownMenu.Item asChild>
                                 <Link
-                                    href={route('administration')}
+                                    href={route('admin.dashboard')}
                                     className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm outline-none transition-colors focus:bg-accent"
                                 >
                                     <Settings className="size-4 text-muted-foreground" />

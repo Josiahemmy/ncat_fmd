@@ -5,9 +5,16 @@ import { X } from 'lucide-react';
 import { Sidebar } from '@/Components/app/Sidebar';
 import { Topbar } from '@/Components/app/Topbar';
 import { ToastProvider } from '@/Components/ui/Toast';
+import { useFlashToasts } from '@/lib/useFlashToasts';
 import { cn } from '@/lib/utils';
 
 const COLLAPSE_KEY = 'ncat.sidebar.collapsed';
+
+/** Bridges server flash → toasts; must live inside ToastProvider. */
+function FlashToasts() {
+    useFlashToasts();
+    return null;
+}
 
 /**
  * AppLayout — the authenticated application shell.
@@ -49,6 +56,7 @@ export default function AppLayout({ header, children }) {
 
     return (
         <ToastProvider>
+            <FlashToasts />
             <div className="min-h-screen bg-background">
                 {/* Desktop sidebar */}
                 <aside

@@ -135,6 +135,29 @@ Ensure `storage/` and `bootstrap/cache/` are writable by the web user.
 The DB password supplied for setup should be rotated in cPanel after go-live,
 and the server `.env` updated (spec §8, §11).
 
+### Production data seeding (Phase 1+)
+
+All seeders are **idempotent** (`updateOrCreate` / `firstOrCreate`) and now run
+automatically on every deploy (the pipeline runs `php artisan db:seed --force`
+after `migrate`). Re-running never resets existing accounts or admin-adjusted
+values. To seed manually on the server:
+
+```bash
+php artisan db:seed --force
+```
+
+This lands, in order: the permission catalogue + starter roles (Super Admin,
+Stores Officer, Storekeeper, Engineer/Technician, Viewer), the four **stores**
+(Quarantine, Bonded, Dope, Fuel Dump), the six aircraft **types**, the 26
+**aircraft**, the **ATA** chapter list, the **document counters**, and the
+initial Super Admin account.
+
+**Document counters are provisional** (`confirmed = false`) and editable in
+*Administration → Counters*. Seeded next-values (derived from the ground-truth
+forms): Work Order **1344** (ledger latest was 1343), Requisition **1002**,
+SIV **0294**, SRV **0202**. Confirm the exact continuation numbers with the
+department before Phase 3 go-live.
+
 ---
 
 ## Security notes

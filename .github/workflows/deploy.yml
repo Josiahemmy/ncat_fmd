@@ -107,6 +107,11 @@ jobs:
             # config cache that could point at the wrong DB connection).
             php artisan optimize:clear
             php artisan migrate --force
+            # Seeders are idempotent (updateOrCreate/firstOrCreate) — safe every
+            # deploy. Lands reference data (stores, types, 26 aircraft, ATA,
+            # counters) and the permission catalogue/roles without resetting
+            # existing accounts or admin-adjusted values.
+            php artisan db:seed --force
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
