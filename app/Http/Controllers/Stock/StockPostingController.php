@@ -6,6 +6,7 @@ use App\Exceptions\Stock\StockException;
 use App\Http\Controllers\Controller;
 use App\Models\Part;
 use App\Models\Store;
+use App\Services\Stock\StockNotifier;
 use App\Services\Stock\StockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +19,10 @@ use Illuminate\Validation\Rule;
  */
 class StockPostingController extends Controller
 {
-    public function __construct(protected StockService $stock)
-    {
+    public function __construct(
+        protected StockService $stock,
+        protected StockNotifier $notifier,
+    ) {
     }
 
     public function certify(Request $request): RedirectResponse
@@ -69,13 +72,18 @@ class StockPostingController extends Controller
             'reason' => ['required', 'string', 'max:1000'],
         ]);
 
-        return $this->run(fn () => $this->stock->adjust(
-            part: Part::findOrFail($data['part_id']),
-            store: Store::findOrFail($data['store_id']),
-            delta: (float) $data['delta'],
-            reason: $data['reason'],
-            user: $request->user(),
-        ), 'Adjustment posted.');
+        return $this->run(function () use ($data, $request) {
+            $part = Part::findOrFail($data['part_id']);
+            $this->stock->adjust(
+                part: $part,
+                store: Store::findOrFail($data['store_id']),
+                delta: (float) $data['delta'],
+                reason: $data['reason'],
+                user: $request->user(),
+            );
+            // Posting-time low-stock notice (spec §6).
+            $this->notifier->checkReorder($part);
+        }, 'Adjustment posted.');
     }
 
     protected function run(callable $action, string $success): RedirectResponse

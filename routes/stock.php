@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Stock\FuelController;
 use App\Http\Controllers\Stock\OpeningBalanceController;
 use App\Http\Controllers\Stock\PartController;
 use App\Http\Controllers\Stock\StockPostingController;
@@ -31,6 +32,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:stores.view')->group(function () {
         Route::get('stores', [StoresController::class, 'index'])->name('stores.index');
         Route::get('stores/{store}', [StoresController::class, 'show'])->name('stores.show');
+        Route::get('fuel', [FuelController::class, 'index'])->name('fuel.index');
+    });
+    Route::middleware('can:fuel.post')->group(function () {
+        Route::post('fuel/receive', [FuelController::class, 'receive'])->name('fuel.receive');
+        Route::post('fuel/issue', [FuelController::class, 'issue'])->name('fuel.issue');
     });
 
     // Tally cards (AD38)

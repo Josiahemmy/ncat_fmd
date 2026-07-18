@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Stock\StockAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Inertia\Middleware;
@@ -58,7 +59,40 @@ class HandleInertiaRequests extends Middleware
                 'generated_password' => fn () => $request->session()->get('generated_password'),
                 'generated_for' => fn () => $request->session()->get('generated_for'),
             ],
+            // Live stock alerts for the notification bell (count + list).
+            'alerts' => fn () => $this->alerts($user),
         ];
+    }
+
+    /**
+     * Lightweight live alerts for the bell. Kept to a couple of cheap queries;
+     * the full CAMP-style panel arrives on the Phase 4 dashboard.
+     *
+     * @return array<string, mixed>
+     */
+    protected function alerts($user): array
+    {
+        if (! $user || ! $user->can('stores.view')) {
+            return ['count' => 0, 'items' => []];
+        }
+
+        $svc = app(StockAlertService::class);
+        $reorder = $svc->belowReorder();
+        $expiring = $svc->expiringWithin(90);
+
+        $items = collect()
+            ->merge($reorder->take(10)->map(fn ($p) => [
+                'type' => 'below_reorder',
+                'label' => "{$p->part_number} — at/below reorder",
+            ]))
+            ->merge($expiring->take(10)->map(fn ($b) => [
+                'type' => 'expiring',
+                'label' => optional($b->part)->part_number." — batch expiring {$b->expiry_date?->toDateString()}",
+            ]))
+            ->take(15)
+            ->values();
+
+        return ['count' => $reorder->count() + $expiring->count(), 'items' => $items];
     }
 
     /** @return array<int, string> */

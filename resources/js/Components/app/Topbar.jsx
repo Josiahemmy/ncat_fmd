@@ -17,7 +17,9 @@ function initials(name = '') {
  * (placeholder), and the user menu. `onOpenSidebar` opens the mobile drawer.
  */
 export function Topbar({ onOpenSidebar }) {
-    const user = usePage().props.auth?.user ?? { name: 'NCAT User', email: '' };
+    const page = usePage().props;
+    const user = page.auth?.user ?? { name: 'NCAT User', email: '' };
+    const { count: alertCount = 0, items: alertItems = [] } = page.alerts ?? {};
 
     return (
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
@@ -43,14 +45,46 @@ export function Topbar({ onOpenSidebar }) {
             </div>
 
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-                {/* Notifications (placeholder) */}
-                <button
-                    className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    aria-label="Notifications"
-                >
-                    <Bell className="size-5" />
-                    <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-ncat-cyan ring-2 ring-background" />
-                </button>
+                {/* Alerts bell — live low-stock / expiry alerts */}
+                <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                        <button
+                            className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            aria-label={`Alerts (${alertCount})`}
+                        >
+                            <Bell className="size-5" />
+                            {alertCount > 0 && (
+                                <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white ring-2 ring-background">
+                                    {alertCount > 99 ? '99+' : alertCount}
+                                </span>
+                            )}
+                        </button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                        <DropdownMenu.Content
+                            align="end"
+                            sideOffset={8}
+                            className="z-50 w-80 rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-glass-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+                        >
+                            <div className="px-2.5 py-2">
+                                <p className="text-sm font-semibold text-ncat-navy">Stock alerts</p>
+                                <p className="text-xs text-muted-foreground">{alertCount} active</p>
+                            </div>
+                            <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                            <div className="max-h-80 overflow-y-auto">
+                                {alertItems.length ? alertItems.map((a, i) => (
+                                    <div key={i} className="flex items-start gap-2 rounded-md px-2.5 py-2 text-sm">
+                                        <span className={cn('mt-1.5 size-1.5 shrink-0 rounded-full',
+                                            a.type === 'expiring' ? 'bg-warning' : 'bg-destructive')} />
+                                        <span className="text-foreground">{a.label}</span>
+                                    </div>
+                                )) : (
+                                    <p className="px-2.5 py-6 text-center text-sm text-muted-foreground">All clear — no active alerts.</p>
+                                )}
+                            </div>
+                        </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                </DropdownMenu.Root>
 
                 {/* User menu */}
                 <DropdownMenu.Root>

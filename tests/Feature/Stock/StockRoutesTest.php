@@ -61,6 +61,24 @@ class StockRoutesTest extends TestCase
             ->where('store_id', Store::where('type', 'bonded')->value('id'))->value('quantity'));
     }
 
+    public function test_an_adjustment_that_drops_below_reorder_writes_a_low_stock_notification(): void
+    {
+        $officer = User::factory()->create()->assignRole('Stores Officer'); // stores.view + stock.adjust
+        $part = Part::factory()->create(['reorder_level' => 10]);
+        $bonded = Store::where('type', 'bonded')->first();
+        app(StockService::class)->openingBalance(part: $part, store: $bonded, quantity: 12, user: $officer);
+
+        $this->actingAs($officer)->post('/stock/adjust', [
+            'part_id' => $part->id, 'store_id' => $bonded->id, 'delta' => -5, 'reason' => 'Stock-take',
+        ])->assertRedirect();
+
+        $this->assertTrue(
+            $officer->fresh()->unreadNotifications
+                ->where('type', \App\Notifications\LowStockNotification::class)
+                ->isNotEmpty(),
+        );
+    }
+
     public function test_transfer_and_adjust_require_their_permissions(): void
     {
         $user = User::factory()->create();

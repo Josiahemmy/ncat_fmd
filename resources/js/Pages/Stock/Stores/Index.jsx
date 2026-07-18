@@ -29,7 +29,7 @@ export default function StoresIndex({ stores }) {
                     const meta = META[s.type] ?? META.general;
                     const Icon = meta.icon;
                     return (
-                        <Link key={s.id} href={route('stores.show', s.id)}>
+                        <Link key={s.id} href={s.type === 'fuel' ? route('fuel.index') : route('stores.show', s.id)}>
                             <Card variant="glass" className={`group h-full overflow-hidden p-5 ring-1 ${meta.ring} transition-shadow hover:shadow-glass-lg`}>
                                 <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${meta.tint} opacity-60`} />
                                 <div className="relative">
