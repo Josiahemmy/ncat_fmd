@@ -85,18 +85,39 @@ Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy
 > key into cPanel's *Authorized Keys* and the private key into `SSH_KEY`.
 
 #### 3. Point the subdomain docroot at Laravel's `public/`  ← important
-Laravel must serve from `public/`, never the app root. **Recommended approach:**
+Laravel must serve from `public/`, never the app root.
 
-- Deploy the app to a folder **outside** the web root, e.g. `~/ncat_fmd_app`
-  (this is your `DEPLOY_PATH`).
-- In `cPanel → Domains`, set the **document root** for `office.ncatfmd.com.ng`
-  to `ncat_fmd_app/public`.
+> ⚠️ **Edit the `office.ncatfmd.com.ng` subdomain, NOT the main `ncatfmd.com.ng`
+> domain.** Changing the main domain's document root breaks the main website.
+> In `cPanel → Domains`, open the **`office.ncatfmd.com.ng`** row → *Manage*.
 
-This keeps `.env`, `vendor/`, and source out of the publicly served directory.
-(If your host locks the subdomain docroot to `~/office.ncatfmd.com.ng`, instead
-set `DEPLOY_PATH=~/office.ncatfmd.com.ng` and symlink so `public` is the docroot,
-or move `public/*` up and adjust the paths in `index.php` — the first approach is
-cleaner and preferred.)
+This account's home is `/home2/almadin1`, and its cPanel **locks the subdomain
+document root to `~/public_html/`** (the New Document Root field has a fixed
+`🏠/public_html/` prefix). So deploy the app under `public_html`:
+
+**Recommended:**
+- GitHub secret → `DEPLOY_PATH = /home2/almadin1/public_html/ncat_fmd_app`
+- Subdomain **New Document Root** → `ncat_fmd_app/public`
+  (resolves to `/public_html/ncat_fmd_app/public`), then **Update**.
+
+If cPanel says the folder doesn't exist, run the GitHub deploy once first so
+`ncat_fmd_app/public` exists, then set the doc root.
+
+**Why it's safe:** the main domain serves the *subfolder* `/public_html/ncatfmd.com.ng`
+and this subdomain serves `/public_html/ncat_fmd_app/public`. Nothing serves
+`/public_html/` itself, so `/public_html/ncat_fmd_app/.env` and `vendor/` are not
+reachable over HTTP.
+
+**Alternative (app fully outside `public_html`, needs SSH):** keep
+`DEPLOY_PATH = /home2/almadin1/ncat_fmd_app`, leave the doc-root field as-is, and
+symlink the docroot to the app's public dir:
+```bash
+rm -rf ~/public_html/office.ncatfmd.com.ng
+ln -s ~/ncat_fmd_app/public ~/public_html/office.ncatfmd.com.ng
+```
+Only use this if the host's `open_basedir` isn't scoped to the docroot (a fatal
+`open_basedir`/`vendor/autoload.php not found` after deploy means it is — switch
+to the recommended option).
 
 #### 4. One-time server bootstrap (before the first deploy or on first run)
 SSH into the server and, in `DEPLOY_PATH`:
