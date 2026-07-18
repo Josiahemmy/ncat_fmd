@@ -34,13 +34,11 @@ Route::middleware('auth')->group(function () {
     */
     $modules = [
         ['aircraft-types', 'Aircraft Types', 'Phase 4'],
-        ['stores', 'Stores', 'Phase 2'],
         ['work-orders', 'Work Orders', 'Phase 3'],
         ['requisitions', 'Requisitions', 'Phase 3'],
         ['receiving', 'Receiving (SRV)', 'Phase 3'],
         ['issuing', 'Issuing (SIV)', 'Phase 3'],
         ['tally-cards', 'Tally Cards', 'Phase 2'],
-        ['parts', 'Parts Catalogue', 'Phase 2'],
         ['reports', 'Reports', 'Phase 5'],
     ];
 
@@ -52,5 +50,6 @@ Route::middleware('auth')->group(function () {
     }
 });
 
+require __DIR__.'/stock.php';
 require __DIR__.'/admin.php';
 require __DIR__.'/auth.php';
