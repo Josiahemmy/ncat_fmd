@@ -30,7 +30,14 @@ export default function PartShow({ part, batches, serials, movements, stores }) 
                 title={part.part_number}
                 description={part.description}
                 icon={Boxes}
-                actions={<StockStateBadge state={part.state} />}
+                actions={(
+                    <div className="flex items-center gap-2">
+                        <StockStateBadge state={part.state} />
+                        <Link href={route('tally-cards.show', part.id)}>
+                            <Button variant="outline" size="sm">Tally card</Button>
+                        </Link>
+                    </div>
+                )}
             />
 
             {/* Per-store balance strip */}

@@ -1,4 +1,5 @@
 import {
+    ClipboardList,
     LayoutDashboard,
     Plane,
     Warehouse,
@@ -26,9 +27,10 @@ export const navItems = [
     { label: 'Requisitions', icon: ScrollText, routeName: 'requisitions', group: 'operations', permission: 'requisitions.view' },
     { label: 'Receiving', icon: PackagePlus, routeName: 'receiving', group: 'operations', permission: 'receiving.view' },
     { label: 'Issuing', icon: PackageMinus, routeName: 'issuing', group: 'operations', permission: 'issues.view' },
-    { label: 'Tally Cards', icon: BookOpenCheck, routeName: 'tally-cards', group: 'operations', permission: 'tally.view' },
+    { label: 'Tally Cards', icon: BookOpenCheck, routeName: 'tally-cards.index', group: 'operations', permission: 'tally.view' },
 
     { label: 'Parts', icon: Boxes, routeName: 'parts.index', group: 'catalogue', permission: 'parts.view' },
+    { label: 'Opening Balances', icon: ClipboardList, routeName: 'opening-balances.index', group: 'catalogue', permission: 'stock.adjust' },
     { label: 'Reports', icon: BarChart3, routeName: 'reports', group: 'catalogue', permission: 'reports.view' },
 
     {

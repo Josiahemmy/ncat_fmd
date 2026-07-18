@@ -38,7 +38,6 @@ Route::middleware('auth')->group(function () {
         ['requisitions', 'Requisitions', 'Phase 3'],
         ['receiving', 'Receiving (SRV)', 'Phase 3'],
         ['issuing', 'Issuing (SIV)', 'Phase 3'],
-        ['tally-cards', 'Tally Cards', 'Phase 2'],
         ['reports', 'Reports', 'Phase 5'],
     ];
 
