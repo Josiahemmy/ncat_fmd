@@ -32,9 +32,14 @@
         .c { text-align: center; }
         .muted { color: #737B89; }
         .badge { display: inline-block; border: 1px solid #101A62; border-radius: 3px; padding: 1px 6px; font-size: 8px; font-weight: bold; color: #101A62; text-transform: uppercase; }
+        /* Demo watermark — subtle diagonal DEMO stamp, sits behind the form data. */
+        .demo-wm { position: absolute; top: 42%; left: 8%; z-index: 0; transform: rotate(-45deg); color: #e5e7eb; font-family: DejaVu Sans, sans-serif; font-size: 120px; font-weight: bold; letter-spacing: 12px; white-space: nowrap; }
     </style>
 </head>
 <body>
+    @if(app(\App\Services\Demo\DemoMode::class)->isActive())
+        <div class="demo-wm">DEMO</div>
+    @endif
     <table class="doc-head">
         <tr>
             <td style="width: 60px;"><img src="{{ $crest }}" class="crest" alt="NCAT"></td>

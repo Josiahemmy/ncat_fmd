@@ -63,6 +63,8 @@ class HandleInertiaRequests extends Middleware
             'alerts' => fn () => $this->alerts($user),
             // Sidebar work-queue badges (approvals for approvers, quarantine for certifiers).
             'badges' => fn () => $this->badges($user),
+            // Demo-mode banner flag (Builder Prompt #7) — cheap cached read.
+            'demo_mode' => fn () => app(\App\Services\Demo\DemoMode::class)->isActive(),
         ];
     }
 

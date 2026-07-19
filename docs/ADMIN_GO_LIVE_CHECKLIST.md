@@ -12,6 +12,34 @@ short **why**. Tick each box as you complete it.
 
 ---
 
+## Phase 0 — If a demo was run (do this FIRST)
+
+_Why: the management demo (`php artisan demo:seed`, see `DEMO_RUNBOOK.md`) fills the
+system with disposable, backdated data and demo users. All of it must be wiped
+**before** any real data is entered — a full truncate is only safe while real
+operation has not started. Skip this phase only if no demo was ever seeded._
+
+- [ ] Purge the demo data (interactive — type the `APP_NAME` when prompted):
+      ```
+      php artisan demo:purge --i-understand-this-deletes-all-transactional-data
+      ```
+      (Scripted/non-interactive variant:
+      `php artisan demo:purge --i-understand-this-deletes-all-transactional-data --no-interaction-confirmed`.)
+- [ ] **Verify the zero-count report** — every transactional table must read **0**.
+      If the command reports *"Purge verification FAILED"* (or exits non-zero), stop
+      and investigate; do not continue to go-live.
+- [ ] Confirm the **preserved reference data** table still shows users, roles,
+      aircraft, stores, ATA chapters and document counters intact.
+- [ ] Sign in and confirm the gold **"Demo data — for presentation only"** banner is
+      **gone** (demo mode is OFF).
+- [ ] **Re-confirm the real document-counter start values with the department** —
+      purge restores the counters but marks them **unconfirmed** (see Phase 4). Do
+      this before entering any real numbers.
+- [ ] Only now proceed to enter **real opening balances** (Phase 7) — never on top of
+      demo data.
+
+---
+
 ## Phase 1 — Secure the administrator account
 
 _Why: the seeded Super Admin ships with a **documented default password**. Nothing

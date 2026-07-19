@@ -90,7 +90,9 @@ class StockAlertService
                     ->where('direction', 'in')
                     ->min('posted_at');
 
-                if ($oldest && now()->diffInDays($oldest) >= $days) {
+                // "In quarantine for >= N days" — compare dates directly so this
+                // is correct under Carbon 3's signed diffInDays (Laravel 12).
+                if ($oldest && \Illuminate\Support\Carbon::parse($oldest)->lte(now()->subDays($days))) {
                     return Part::find($partId);
                 }
 

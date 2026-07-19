@@ -42,3 +42,6 @@ docs.txt
 # Microsoft Office lock/temp files
 ~$*
 *.tmp
+
+# Playwright MCP artifacts
+.playwright-mcp/

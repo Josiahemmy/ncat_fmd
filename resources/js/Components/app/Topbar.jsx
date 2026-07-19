@@ -23,7 +23,13 @@ export function Topbar({ onOpenSidebar }) {
     const user = page.auth?.user ?? { name: 'NCAT User', email: '' };
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
+        <header
+            className={cn(
+                'sticky z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6',
+                // Sit flush below the demo banner (h-7) when it is present.
+                page.demo_mode ? 'top-7' : 'top-0',
+            )}
+        >
             {/* Mobile drawer toggle */}
             <button
                 onClick={onOpenSidebar}

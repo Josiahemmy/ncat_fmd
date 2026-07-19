@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { DemoBanner } from '@/Components/app/DemoBanner';
 import { Sidebar } from '@/Components/app/Sidebar';
 import { Topbar } from '@/Components/app/Topbar';
 import { ToastProvider } from '@/Components/ui/Toast';
@@ -108,6 +109,7 @@ export default function AppLayout({ header, children }) {
                         collapsed ? 'lg:pl-[76px]' : 'lg:pl-64',
                     )}
                 >
+                    <DemoBanner />
                     <Topbar onOpenSidebar={() => setDrawerOpen(true)} />
 
                     {header && (

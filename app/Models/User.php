@@ -27,6 +27,7 @@ class User extends Authenticatable
         'password_change_required',
         'is_active',
         'last_login_at',
+        'is_demo',
     ];
 
     /**
@@ -52,6 +53,7 @@ class User extends Authenticatable
             'password_change_required' => 'boolean',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
+            'is_demo' => 'boolean',
         ];
     }
 
