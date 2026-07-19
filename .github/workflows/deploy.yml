@@ -101,10 +101,16 @@ jobs:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$SSH_HOST" ]; then
+            echo "::error::SSH_KEY or SSH_HOST secret is missing — cannot configure SSH."
+            exit 1
+          fi
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # Best-effort only: every ssh call below uses StrictHostKeyChecking=no, so a
+          # transient ssh-keyscan blip to the shared host must NOT abort the deploy.
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       # tar-over-SSH extracts ADDITIVELY (no rsync --delete), so old Vite hashed
       # chunks in public/build/assets would accumulate forever. Prune the build
