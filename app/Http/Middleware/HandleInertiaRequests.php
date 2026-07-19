@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Requisition;
+use App\Models\StockBalance;
 use App\Services\Stock\StockAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -61,7 +63,36 @@ class HandleInertiaRequests extends Middleware
             ],
             // Live stock alerts for the notification bell (count + list).
             'alerts' => fn () => $this->alerts($user),
+            // Sidebar work-queue badges (approvals for approvers, quarantine for certifiers).
+            'badges' => fn () => $this->badges($user),
         ];
+    }
+
+    /**
+     * Sidebar badge counts, gated by permission so each role only sees its own
+     * queue. Cheap COUNT queries.
+     *
+     * @return array<string, int>
+     */
+    protected function badges($user): array
+    {
+        if (! $user) {
+            return [];
+        }
+
+        $badges = [];
+
+        if ($user->can('requisitions.approve')) {
+            $badges['approvals'] = Requisition::where('status', 'submitted')->count();
+        }
+
+        if ($user->can('quarantine.certify')) {
+            $badges['quarantine'] = StockBalance::where('quantity', '>', 0)
+                ->whereHas('store', fn ($q) => $q->where('type', 'quarantine'))
+                ->count();
+        }
+
+        return $badges;
     }
 
     /**

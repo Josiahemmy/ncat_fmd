@@ -77,12 +77,14 @@ class Phase0FoundationTest extends TestCase
     {
         $user = User::factory()->create();
 
+        // Work Orders / Requisitions / Receiving / Issuing went live in Phase 3;
+        // Aircraft Types (Phase 4) is still a placeholder.
         $this->actingAs($user)
-            ->get('/work-orders')
+            ->get('/aircraft-types')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Placeholder')
-                ->where('module', 'Work Orders'));
+                ->where('module', 'Aircraft Types'));
     }
 
     public function test_health_endpoint_is_available(): void

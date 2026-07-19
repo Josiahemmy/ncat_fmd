@@ -12,10 +12,11 @@ import {
 } from '@/Components/ui/Table';
 import { cn } from '@/lib/utils';
 
-const TABS = ['Overview', 'Batches', 'Serials', 'Movements'];
+const TABS = ['Overview', 'Batches', 'Serials', 'Movements', 'Documents'];
 
-export default function PartShow({ part, batches, serials, movements, stores }) {
+export default function PartShow({ part, batches, serials, movements, stores, documents }) {
     const [tab, setTab] = useState('Overview');
+    const docs = documents ?? { requisitions: [], issues: [] };
 
     return (
         <AppLayout>
@@ -156,6 +157,52 @@ export default function PartShow({ part, batches, serials, movements, stores }) 
                     </Table>
                     {!movements.length && <p className="p-6 text-center text-sm text-muted-foreground">No movements yet.</p>}
                 </Card>
+            )}
+
+            {tab === 'Documents' && (
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <Card className="overflow-hidden">
+                        <CardHeader><CardTitle className="text-base">Requisitions</CardTitle></CardHeader>
+                        <Table>
+                            <TableHeader><TableRow>
+                                <TableHead>No.</TableHead><TableHead>Aircraft</TableHead><TableHead>Status</TableHead>
+                            </TableRow></TableHeader>
+                            <TableBody>
+                                {docs.requisitions.map((r) => (
+                                    <TableRow key={r.id}>
+                                        <TableCell>
+                                            <Link href={route('requisitions.show', r.id)} className="font-mono text-xs text-primary hover:underline">{r.requisition_no}</Link>
+                                        </TableCell>
+                                        <TableCell className="text-sm">{r.aircraft ?? '—'}</TableCell>
+                                        <TableCell><Badge variant="neutral">{r.status}</Badge></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        {!docs.requisitions.length && <p className="p-6 text-center text-sm text-muted-foreground">No requisitions.</p>}
+                    </Card>
+
+                    <Card className="overflow-hidden">
+                        <CardHeader><CardTitle className="text-base">Issued on (SIV)</CardTitle></CardHeader>
+                        <Table>
+                            <TableHeader><TableRow>
+                                <TableHead>SIV No.</TableHead><TableHead className="text-right">Qty issued</TableHead><TableHead>Status</TableHead>
+                            </TableRow></TableHeader>
+                            <TableBody>
+                                {docs.issues.map((i) => (
+                                    <TableRow key={i.id}>
+                                        <TableCell>
+                                            <Link href={route('issuing.show', i.siv_id)} className="font-mono text-xs text-primary hover:underline">{i.siv_number}</Link>
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums">{i.qty_issued}</TableCell>
+                                        <TableCell><Badge variant="neutral">{i.status}</Badge></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        {!docs.issues.length && <p className="p-6 text-center text-sm text-muted-foreground">Not yet issued.</p>}
+                    </Card>
+                </div>
             )}
         </AppLayout>
     );

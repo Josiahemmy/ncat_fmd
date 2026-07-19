@@ -82,7 +82,30 @@ class PartController extends Controller
             'stores' => $stores,
             'ataChapters' => AtaChapter::orderBy('chapter_number')->get(['id', 'chapter_number', 'title']),
             'types' => AircraftType::orderBy('sort_order')->get(['id', 'name']),
+            'documents' => $this->documentsFor($part),
         ]);
+    }
+
+    /** Phase 3 touchpoint: paper documents that reference this part. */
+    protected function documentsFor(Part $part): array
+    {
+        $requisitions = \App\Models\Requisition::where('part_id', $part->id)
+            ->with('aircraft:id,registration')->latest('id')->limit(25)->get()
+            ->map(fn ($r) => [
+                'id' => $r->id, 'requisition_no' => $r->requisition_no, 'status' => $r->status,
+                'aircraft' => $r->aircraft?->registration ?? $r->aircraft_reg,
+                'date' => $r->requisition_date?->toDateString(),
+            ]);
+
+        $issues = \App\Models\SivItem::where('part_id', $part->id)
+            ->with('siv:id,siv_number,status')->latest('id')->limit(25)->get()
+            ->map(fn ($i) => [
+                'id' => $i->id, 'siv_id' => $i->siv_id,
+                'siv_number' => $i->siv?->siv_number, 'status' => $i->siv?->status,
+                'qty_issued' => (float) $i->qty_issued,
+            ]);
+
+        return ['requisitions' => $requisitions, 'issues' => $issues];
     }
 
     public function store(Request $request): RedirectResponse

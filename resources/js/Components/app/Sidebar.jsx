@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Wordmark } from '@/Components/brand/Wordmark';
@@ -21,6 +21,7 @@ function isActive(routeName) {
  */
 export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate }) {
     const { can, canAny } = usePermissions();
+    const badges = usePage().props.badges ?? {};
 
     const isVisible = (item) => {
         if (item.permission) return can(item.permission);
@@ -71,6 +72,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate }) {
                                 {items.map((item) => {
                                     const active = isActive(item.routeName);
                                     const Icon = item.icon;
+                                    const count = item.badge ? badges[item.badge] : 0;
                                     return (
                                         <li key={item.routeName}>
                                             <Link
@@ -99,6 +101,14 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate }) {
                                                     )}
                                                 />
                                                 {!collapsed && <span className="truncate">{item.label}</span>}
+                                                {!collapsed && count > 0 && (
+                                                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                                                        {count}
+                                                    </span>
+                                                )}
+                                                {collapsed && count > 0 && (
+                                                    <span className="absolute right-1 top-1 size-2 rounded-full bg-sidebar-accent" />
+                                                )}
                                             </Link>
                                         </li>
                                     );
