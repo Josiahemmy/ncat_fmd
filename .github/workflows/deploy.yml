@@ -147,8 +147,14 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -lc "
             set -e
             cd '$DEPLOY_PATH'
-            # Clear caches FIRST so migrate reads the live .env (not a stale
-            # config cache that could point at the wrong DB connection).
+            # Delete stale bootstrap caches at the FILE level before booting any
+            # artisan command. A config.php cached by a previous release predates
+            # newly-added packages, so an auto-discovered provider (e.g.
+            # spatie/laravel-backup) would boot with null config and abort —
+            # and 'artisan optimize:clear' can't help because it must boot those
+            # same providers to run. rm needs no framework boot, so it always works.
+            rm -f bootstrap/cache/*.php
+            # Now the framework boots from fresh config; clear the rest too.
             php artisan optimize:clear
             php artisan migrate --force
             # Seeders are idempotent (updateOrCreate/firstOrCreate) — safe every
