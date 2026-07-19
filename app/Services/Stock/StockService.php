@@ -313,6 +313,7 @@ class StockService
         ?float $unitPrice = null,
         ?string $reference = null,
         ?string $remarks = null,
+        ?object $source = null,
     ): StockMovement {
         if ($unitPrice !== null) {
             $part->forceFill(['unit_price' => $unitPrice])->save();
@@ -325,7 +326,9 @@ class StockService
             quantity: $quantity,
             movementType: 'fuel_receive',
             user: $user,
-            attributes: ['reference' => $reference, 'remarks' => $remarks],
+            // Polymorphic source (e.g. the SRV) like every other movement, plus
+            // the human reference string for continuity with legacy records.
+            attributes: $this->sourceAttributes($source) + ['reference' => $reference, 'remarks' => $remarks],
         );
     }
 

@@ -40,9 +40,37 @@ class FuelController extends Controller
             ];
         });
 
+        // Recent fuel ledger with drill-down: receipts link to their SRV (via the
+        // polymorphic source, Phase 5), issues link to the aircraft workspace.
+        $movements = \App\Models\StockMovement::where('store_id', $fuelStore?->id)
+            ->with(['part:id,part_number', 'aircraft:id,registration', 'user:id,name'])
+            ->orderByDesc('id')->limit(25)->get()
+            ->map(function (\App\Models\StockMovement $m) {
+                $link = null;
+                if ($m->source_type === \App\Models\Srv::class && $m->source_id) {
+                    $link = route('receiving.show', $m->source_id);
+                } elseif ($m->aircraft) {
+                    $link = route('aircraft.show', $m->aircraft->registration);
+                }
+
+                return [
+                    'id' => $m->id,
+                    'date' => $m->posted_at?->toDateString(),
+                    'part_number' => $m->part?->part_number,
+                    'direction' => $m->direction,
+                    'quantity' => (float) $m->quantity,
+                    'type' => $m->movement_type,
+                    'aircraft' => $m->aircraft?->registration,
+                    'reference' => $m->reference,
+                    'user' => $m->user?->name,
+                    'link' => $link,
+                ];
+            });
+
         return Inertia::render('Stock/Fuel/Index', [
             'fuels' => $fuels,
             'aircraft' => Aircraft::where('status', 'active')->orderBy('registration')->get(['id', 'registration']),
+            'movements' => $movements,
         ]);
     }
 

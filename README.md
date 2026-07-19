@@ -1,17 +1,37 @@
 # NCAT FMD — Inventory & Stores Management System
 
 Web-based inventory and stores management for the **Flight Maintenance Department (FMD)**,
-Nigerian College of Aviation Technology, Zaria. Work Orders, Requisitions, Receiving (SRV),
-Issuing (SIV) and Tally Cards across the department's fleet of **26 aircraft / 6 types**, with
-a permission-managed multi-user dashboard, an immutable stock-movement ledger, and analytics.
+Nigerian College of Aviation Technology, Zaria. It digitises the department's paper workflow
+end to end — Work Orders, Requisitions (one unit per voucher), Receiving (SRV), Issuing (SIV),
+quarantine certification, fuel dump, and AD38 Tally Cards — across the fleet of **26 aircraft /
+6 types** and the four physical stores (Quarantine, Bonded, Dope, Fuel Dump). It ships a
+permission-managed multi-user dashboard, an immutable stock-movement ledger from which all
+balances and analytics are derived, paper-exact printable PDFs, and CAMP-style alerts. **All
+five build phases are delivered — the system is UAT-ready.**
 
 - **Live target:** https://office.ncatfmd.com.ng
-- **Stack:** Laravel 12 · Inertia.js · React 18 · Tailwind CSS 3 (shadcn-idiom kit) · Framer Motion · Recharts
-- **RBAC/audit:** spatie/laravel-permission · spatie/laravel-activitylog · **PDF:** barryvdh/laravel-dompdf
 - **Design spec:** [`docs/superpowers/specs/2026-07-17-ncat-fmd-inventory-design.md`](docs/superpowers/specs/2026-07-17-ncat-fmd-inventory-design.md)
+- **User guide:** [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — role-oriented walkthrough of every module.
+- **Go-live checklist:** [`docs/ADMIN_GO_LIVE_CHECKLIST.md`](docs/ADMIN_GO_LIVE_CHECKLIST.md) — the ordered steps to go live.
 
-This repository is **Phase 0** — foundation, design system, auth, app shell and CI/CD.
-Data models, modules and analytics arrive in Phases 1–5 (see spec §9).
+## Tech stack
+
+- **Backend:** Laravel 12 (PHP 8.2+), MySQL (cPanel DB `almadin1_ncat`)
+- **Frontend:** Inertia.js · React 18 · Tailwind CSS 3 (shadcn-idiom component kit) · Framer Motion · Recharts
+- **Auth / RBAC / audit:** Laravel Breeze · spatie/laravel-permission · spatie/laravel-activitylog
+- **PDF:** barryvdh/laravel-dompdf (branded, paper-exact vouchers)
+- **Hosting / CI:** cPanel (SSH) · GitHub Actions → build → test-gate → tar-over-SSH deploy → migrate → cache → health check
+
+## Build phases (all delivered)
+
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 0 | Scaffold, design system, auth, app shell, CI/CD | ✅ Delivered |
+| 1 | Core data (types, 26 aircraft, ATA, stores) · Administration (users/roles/permissions/aircraft/stores/counters) · first-login password change | ✅ Delivered |
+| 2 | Parts & stock engine: catalogue (AD38 fields), batches/serials, per-store movement ledger, tally views, transfers, adjustments, quarantine certification, fuel dump | ✅ Delivered |
+| 3 | Documents: Work Orders (FMD numbering), Requisitions (paper-exact + removal), Receiving→Quarantine, SIV issuing, document counters | ✅ Delivered |
+| 4 | Aircraft experience (fleet → registration → workspace), CAMP-style dashboard, Parts on Aircraft | ✅ Delivered |
+| 5 | Paper-exact PDF vouchers, Reports & exports, notifications, a11y/perf/responsive polish | ✅ Delivered |
 
 ---
 
@@ -21,14 +41,17 @@ Data models, modules and analytics arrive in Phases 1–5 (see spec §9).
 
 ```bash
 composer install
-npm install
+npm ci                       # reproducible install from package-lock.json
 cp .env.example .env
 php artisan key:generate
 
-# Tests run on in-memory sqlite; no MySQL needed to develop against.
+# Build the schema and seed reference data + the Super Admin.
+php artisan migrate --seed
+
+# Run the test suite (in-memory sqlite — no MySQL needed).
 php artisan test
 
-# Two terminals (or `composer run dev` if configured):
+# Dev servers — two terminals (or `composer run dev` if configured):
 npm run dev
 php artisan serve
 ```
@@ -36,7 +59,10 @@ php artisan serve
 > The committed `.env.example` points at the cPanel MySQL database
 > (`almadin1_ncat`). Shared-cPanel MySQL is usually **not reachable from a dev
 > machine**, so the test suite is configured (in `phpunit.xml`) to use
-> in-memory sqlite. Real migrations run on the server via CI/CD.
+> in-memory sqlite. Against a local MySQL/sqlite dev DB, `migrate --seed` lands
+> the full schema, the permission catalogue + starter roles, the four stores, the
+> six aircraft types, the 26 aircraft, ATA chapters, document counters and the
+> Super Admin. Real migrations run on the server via CI/CD.
 
 **Seeded administrator** (created by `php artisan db:seed`):
 
@@ -57,7 +83,7 @@ Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy
 1. Install PHP deps (with dev) → `npm ci` → `npm run build`
 2. **Run the test suite — deploy is gated on green tests**
 3. Reinstall production deps (`--no-dev --optimize-autoloader`)
-4. `rsync` the app to the server over SSH (excludes `.env`, `node_modules`, `.git`, runtime storage)
+4. Stream a **gzipped tar over SSH** and extract on the server (shared cPanel hosts usually lack `rsync`; excludes `.env`, `node_modules`, `.git`, runtime storage)
 5. Remote: `php artisan migrate --force` → `optimize:clear` → `config:cache route:cache view:cache` → `storage:link`
 6. `curl` health check on `https://office.ncatfmd.com.ng/up`
 

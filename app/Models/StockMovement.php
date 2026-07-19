@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use RuntimeException;
 
 /**
@@ -67,6 +68,12 @@ class StockMovement extends Model
     public function aircraft(): BelongsTo
     {
         return $this->belongsTo(Aircraft::class);
+    }
+
+    /** The document that produced this movement (SRV, SIV, Requisition, …). */
+    public function source(): MorphTo
+    {
+        return $this->morphTo();
     }
 
     public function user(): BelongsTo

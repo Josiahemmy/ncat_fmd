@@ -106,6 +106,19 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
+      # tar-over-SSH extracts ADDITIVELY (no rsync --delete), so old Vite hashed
+      # chunks in public/build/assets would accumulate forever. Prune the build
+      # dir before extraction; the fresh tar repopulates it with the current
+      # manifest + assets. Scoped strictly to public/build — storage/ and .env
+      # are never touched.
+      - name: Prune stale build assets on server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "rm -rf '$DEPLOY_PATH/public/build'"
+
       # Shared cPanel hosts usually lack `rsync`, so stream a gzipped tar over
       # SSH and extract on the server (only needs `tar`, which is always
       # present). `.env` is excluded so the server's own .env is never touched;

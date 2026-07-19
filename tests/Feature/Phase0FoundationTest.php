@@ -73,19 +73,6 @@ class Phase0FoundationTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
     }
 
-    public function test_a_module_placeholder_renders_for_an_authenticated_user(): void
-    {
-        $user = User::factory()->create();
-
-        // Aircraft Types went live in Phase 4; Reports (Phase 5) is still a placeholder.
-        $this->actingAs($user)
-            ->get('/reports')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Placeholder')
-                ->where('module', 'Reports'));
-    }
-
     public function test_health_endpoint_is_available(): void
     {
         $this->get('/up')->assertOk();

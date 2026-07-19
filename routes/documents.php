@@ -4,6 +4,7 @@ use App\Http\Controllers\Documents\RequisitionController;
 use App\Http\Controllers\Documents\SivController;
 use App\Http\Controllers\Documents\SrvController;
 use App\Http\Controllers\Documents\WorkOrderController;
+use App\Http\Controllers\PdfController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,6 +39,7 @@ Route::middleware('auth')->group(function () {
         Route::post('requisitions', [RequisitionController::class, 'store'])->name('requisitions.store');
     });
     Route::middleware('can:requisitions.view')->group(function () {
+        Route::get('requisitions/{requisition}/pdf', [PdfController::class, 'requisition'])->name('requisitions.pdf');
         Route::get('requisitions/{requisition}', [RequisitionController::class, 'show'])->name('requisitions.show');
     });
     Route::middleware('can:requisitions.create')->group(function () {
@@ -59,6 +61,7 @@ Route::middleware('auth')->group(function () {
         Route::post('receiving', [SrvController::class, 'store'])->name('receiving.store');
     });
     Route::middleware('can:receiving.view')->group(function () {
+        Route::get('receiving/{srv}/pdf', [PdfController::class, 'srv'])->name('receiving.pdf');
         Route::get('receiving/{srv}', [SrvController::class, 'show'])->name('receiving.show');
     });
     Route::middleware('can:receiving.post')->group(function () {
@@ -75,6 +78,7 @@ Route::middleware('auth')->group(function () {
         Route::post('issuing', [SivController::class, 'store'])->name('issuing.store');
     });
     Route::middleware('can:issues.view')->group(function () {
+        Route::get('issuing/{siv}/pdf', [PdfController::class, 'siv'])->name('issuing.pdf');
         Route::get('issuing/{siv}', [SivController::class, 'show'])->name('issuing.show');
     });
     Route::middleware('can:issues.post')->group(function () {

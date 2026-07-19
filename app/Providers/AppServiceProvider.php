@@ -8,8 +8,10 @@ use App\Models\WorkOrder;
 use App\Services\Dashboard\DashboardService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -55,5 +57,12 @@ class AppServiceProvider extends ServiceProvider
         StockMovement::created($bust);
         Requisition::saved($bust);
         WorkOrder::saved($bust);
+
+        // Rate limiters (spec §5 hardening). Keyed by user where authenticated,
+        // else by IP. Login is defence-in-depth on top of LoginRequest's own
+        // per-email throttle.
+        RateLimiter::for('auth', fn ($request) => Limit::perMinute(10)->by($request->ip()));
+        RateLimiter::for('search', fn ($request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
+        RateLimiter::for('posting', fn ($request) => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip()));
     }
 }

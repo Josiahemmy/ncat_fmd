@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check, Printer, ScrollText, Wrench, X } from 'lucide-react';
+import { ArrowLeft, Check, FileDown, Printer, ScrollText, Wrench, X } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/ui/PageHeader';
 import { Button } from '@/Components/ui/Button';
@@ -62,6 +62,9 @@ export default function RequisitionShow({ requisition, flow }) {
                             <Button variant="navy" onClick={() => setRemoving(true)}><Wrench className="size-4" /> Record removal</Button>
                         )}
                         <Button variant="outline" onClick={() => window.print()}><Printer className="size-4" /> Print</Button>
+                        <Button asChild variant="outline">
+                            <a href={route('requisitions.pdf', r.id)} target="_blank" rel="noopener noreferrer"><FileDown className="size-4" /> PDF</a>
+                        </Button>
                     </div>
                 </div>
 

@@ -57,9 +57,10 @@ class SrvService
                 $part = $item->part;
                 $qty = (float) $item->quantity;
 
-                // Bulk fuel routes to the Fuel Dump via the dedicated path.
+                // Bulk fuel routes to the Fuel Dump via the dedicated path,
+                // now carrying the SRV as its polymorphic source (Phase 5).
                 if ($part->is_fuel) {
-                    $this->stock->fuelReceive($part, $qty, $user, $item->rate, $srv->srv_number, $item->supplier_details);
+                    $this->stock->fuelReceive($part, $qty, $user, $item->rate, $srv->srv_number, $item->supplier_details, $srv);
                     continue;
                 }
 

@@ -169,7 +169,9 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Secure cookies are forced on in production even if the env var is unset,
+    // so a missing SESSION_SECURE_COOKIE can never silently downgrade HTTPS.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

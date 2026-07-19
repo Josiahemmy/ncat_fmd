@@ -11,7 +11,7 @@ import { Badge } from '@/Components/ui/Badge';
 import { usePermissions } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
-export default function FuelIndex({ fuels, aircraft }) {
+export default function FuelIndex({ fuels, aircraft, movements = [] }) {
     const { can } = usePermissions();
     const canPost = can('fuel.post');
 
@@ -63,6 +63,50 @@ export default function FuelIndex({ fuels, aircraft }) {
                     <ReceiveFuel fuels={fuels} />
                     <IssueFuel fuels={fuels} aircraft={aircraft} />
                 </div>
+            )}
+
+            {movements?.length > 0 && (
+                <Card className="mt-6">
+                    <CardHeader><CardTitle className="flex items-center gap-2"><Fuel className="size-4 text-primary" /> Recent fuel movements</CardTitle></CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[560px] text-sm">
+                                <thead>
+                                    <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                        <th className="px-3 py-2.5">Date</th>
+                                        <th className="px-3 py-2.5">Fuel</th>
+                                        <th className="px-3 py-2.5">Movement</th>
+                                        <th className="px-3 py-2.5 text-right">Litres</th>
+                                        <th className="px-3 py-2.5">Reference</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {movements.map((m) => (
+                                        <tr key={m.id} className="transition-colors hover:bg-accent">
+                                            <td className="px-3 py-2.5 text-muted-foreground">{m.date}</td>
+                                            <td className="px-3 py-2.5 font-medium text-ncat-navy">{m.part_number}</td>
+                                            <td className="px-3 py-2.5">
+                                                <Badge variant={m.direction === 'in' ? 'success' : 'warning'}>
+                                                    {m.type === 'fuel_receive' ? 'Received' : 'Issued'}{m.aircraft ? ` · ${m.aircraft}` : ''}
+                                                </Badge>
+                                            </td>
+                                            <td className={cn('px-3 py-2.5 text-right font-semibold', m.direction === 'in' ? 'text-success' : 'text-[hsl(30_65%_32%)]')}>
+                                                {m.direction === 'in' ? '+' : '−'}{m.quantity.toLocaleString()}
+                                            </td>
+                                            <td className="px-3 py-2.5">
+                                                {m.link ? (
+                                                    <Link href={m.link} className="font-medium text-primary hover:underline">{m.reference || 'View source'}</Link>
+                                                ) : (
+                                                    <span className="text-muted-foreground">{m.reference || '—'}</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
             )}
         </AppLayout>
     );

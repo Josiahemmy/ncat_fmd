@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, PackageCheck, PackageMinus, Printer } from 'lucide-react';
+import { ArrowLeft, FileDown, PackageCheck, PackageMinus, Printer } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/ui/PageHeader';
 import { Button } from '@/Components/ui/Button';
@@ -38,6 +38,9 @@ export default function SivShow({ siv }) {
                             <Button onClick={() => setPosting(true)}><PackageCheck className="size-4" /> Post SIV</Button>
                         )}
                         <Button variant="outline" onClick={() => window.print()}><Printer className="size-4" /> Print</Button>
+                        <Button asChild variant="outline">
+                            <a href={route('issuing.pdf', siv.id)} target="_blank" rel="noopener noreferrer"><FileDown className="size-4" /> PDF</a>
+                        </Button>
                     </div>
                 </div>
             </div>

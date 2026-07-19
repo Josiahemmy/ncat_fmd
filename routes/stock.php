@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
     // Tally cards (AD38)
     Route::middleware('can:tally.view')->group(function () {
         Route::get('tally-cards', [TallyController::class, 'index'])->name('tally-cards.index');
+        Route::get('tally-cards/{part}/pdf', [\App\Http\Controllers\PdfController::class, 'tally'])->name('tally-cards.pdf');
         Route::get('tally-cards/{part}', [TallyController::class, 'show'])->name('tally-cards.show');
     });
 
@@ -55,10 +56,12 @@ Route::middleware('auth')->group(function () {
     });
 
     // Postings (each gated by its own permission; all funnel through StockService)
-    Route::post('stock/certify', [StockPostingController::class, 'certify'])
-        ->name('stock.certify')->middleware('can:quarantine.certify');
-    Route::post('stock/transfer', [StockPostingController::class, 'transfer'])
-        ->name('stock.transfer')->middleware('can:stock.transfer');
-    Route::post('stock/adjust', [StockPostingController::class, 'adjust'])
-        ->name('stock.adjust')->middleware('can:stock.adjust');
+    Route::middleware('throttle:posting')->group(function () {
+        Route::post('stock/certify', [StockPostingController::class, 'certify'])
+            ->name('stock.certify')->middleware('can:quarantine.certify');
+        Route::post('stock/transfer', [StockPostingController::class, 'transfer'])
+            ->name('stock.transfer')->middleware('can:stock.transfer');
+        Route::post('stock/adjust', [StockPostingController::class, 'adjust'])
+            ->name('stock.adjust')->middleware('can:stock.adjust');
+    });
 });

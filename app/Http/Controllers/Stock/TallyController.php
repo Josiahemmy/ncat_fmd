@@ -43,13 +43,21 @@ class TallyController extends Controller
         $storeIds = StockMovement::where('part_id', $part->id)->distinct()->pluck('store_id');
         $stores = Store::whereIn('id', $storeIds)->orderBy('sort_order')->get(['id', 'name', 'slug', 'type']);
 
-        $storeId = $request->integer('store') ?: $stores->first()?->id;
-        $store = $storeId ? Store::find($storeId) : null;
-
         $from = $request->string('from')->toString() ?: null;
         $to = $request->string('to')->toString() ?: null;
 
-        $card = $store ? $this->tally->card($part, $store, $from, $to) : null;
+        // 'all' → the consolidated non-AD38 view across every store.
+        $consolidated = $request->string('store')->toString() === 'all';
+
+        if ($consolidated) {
+            $storeId = 'all';
+            $store = null;
+            $card = $this->tally->consolidated($part, $from, $to);
+        } else {
+            $storeId = $request->integer('store') ?: $stores->first()?->id;
+            $store = $storeId ? Store::find($storeId) : null;
+            $card = $store ? $this->tally->card($part, $store, $from, $to) : null;
+        }
 
         $part->load(['ataChapter:id,chapter_number']);
 
