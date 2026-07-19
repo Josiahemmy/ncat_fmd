@@ -2,9 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Requisition;
-use App\Models\StockBalance;
-use App\Services\Stock\StockAlertService;
+use App\Services\Dashboard\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Inertia\Middleware;
@@ -70,7 +68,8 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Sidebar badge counts, gated by permission so each role only sees its own
-     * queue. Cheap COUNT queries.
+     * queue. Sourced from the cached dashboard aggregates — no per-request
+     * query cost.
      *
      * @return array<string, int>
      */
@@ -80,50 +79,30 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
+        $counts = app(DashboardService::class)->aggregates()['alerts'];
         $badges = [];
 
         if ($user->can('requisitions.approve')) {
-            $badges['approvals'] = Requisition::where('status', 'submitted')->count();
+            $badges['approvals'] = $counts['requisitions_pending'];
         }
 
         if ($user->can('quarantine.certify')) {
-            $badges['quarantine'] = StockBalance::where('quantity', '>', 0)
-                ->whereHas('store', fn ($q) => $q->where('type', 'quarantine'))
-                ->count();
+            $badges['quarantine'] = $counts['quarantine'];
         }
 
         return $badges;
     }
 
     /**
-     * Lightweight live alerts for the bell. Kept to a couple of cheap queries;
-     * the full CAMP-style panel arrives on the Phase 4 dashboard.
+     * Live, grouped, permission-filtered alerts for the notification bell.
+     * The heavy computation is done once per 60s in DashboardService and
+     * busted on posting — the shared cost here is a few permission checks.
      *
      * @return array<string, mixed>
      */
     protected function alerts($user): array
     {
-        if (! $user || ! $user->can('stores.view')) {
-            return ['count' => 0, 'items' => []];
-        }
-
-        $svc = app(StockAlertService::class);
-        $reorder = $svc->belowReorder();
-        $expiring = $svc->expiringWithin(90);
-
-        $items = collect()
-            ->merge($reorder->take(10)->map(fn ($p) => [
-                'type' => 'below_reorder',
-                'label' => "{$p->part_number} — at/below reorder",
-            ]))
-            ->merge($expiring->take(10)->map(fn ($b) => [
-                'type' => 'expiring',
-                'label' => optional($b->part)->part_number." — batch expiring {$b->expiry_date?->toDateString()}",
-            ]))
-            ->take(15)
-            ->values();
-
-        return ['count' => $reorder->count() + $expiring->count(), 'items' => $items];
+        return app(DashboardService::class)->sharedAlerts($user);
     }
 
     /** @return array<int, string> */

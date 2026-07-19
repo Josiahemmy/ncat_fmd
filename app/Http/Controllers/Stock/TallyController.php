@@ -20,16 +20,20 @@ class TallyController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->string('search')->toString();
+        // Aircraft-type filter (Phase 4 workspace): parts belonging to a type.
+        $aircraftType = $request->integer('aircraft_type') ?: null;
 
         $parts = Part::query()
-            ->when($search, fn ($q, $v) => $q->where('part_number', 'like', "%{$v}%")->orWhere('description', 'like', "%{$v}%"))
+            ->when($search, fn ($q, $v) => $q->where(fn ($w) => $w
+                ->where('part_number', 'like', "%{$v}%")->orWhere('description', 'like', "%{$v}%")))
+            ->when($aircraftType, fn ($q, $v) => $q->where('aircraft_type_id', $v))
             ->orderBy('part_number')
             ->limit(50)
             ->get(['id', 'part_number', 'description']);
 
         return Inertia::render('Stock/Tally/Index', [
             'parts' => $parts,
-            'filters' => ['search' => $search],
+            'filters' => ['search' => $search, 'aircraft_type' => $aircraftType],
         ]);
     }
 

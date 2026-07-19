@@ -197,6 +197,9 @@ class PartController extends Controller
 
     protected function state(Part $part, float $total): string
     {
+        if ($part->has_shelf_life && $part->batches->contains(fn ($b) => $b->expiry_date && $b->expiry_date->lt(today()))) {
+            return 'expired';
+        }
         if ($part->has_shelf_life && $part->batches->contains(fn ($b) => $b->expiry_date && $b->expiry_date->isBetween(today(), today()->addDays(90)))) {
             return 'expiring';
         }

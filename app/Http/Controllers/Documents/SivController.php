@@ -20,10 +20,15 @@ class SivController extends Controller
 {
     public function index(Request $request): Response
     {
+        // Aircraft filter (Phase 4 workspace): SIVs whose lines reference a
+        // requisition raised for this aircraft.
+        $aircraft = $request->integer('aircraft') ?: null;
+
         $rows = Siv::query()
             ->when($request->string('status')->toString(), fn ($q, $v) => $q->where('status', $v))
             ->when($request->string('search')->toString(), fn ($q, $v) => $q->where(fn ($w) => $w
                 ->where('siv_number', 'like', "%{$v}%")->orWhere('requisition_for', 'like', "%{$v}%")))
+            ->when($aircraft, fn ($q, $v) => $q->whereHas('items.requisition', fn ($r) => $r->where('aircraft_id', $v)))
             ->orderByDesc('id')->get()
             ->map(fn (Siv $s) => [
                 'id' => $s->id,
@@ -35,7 +40,11 @@ class SivController extends Controller
 
         return Inertia::render('Siv/Index', [
             'sivs' => $rows,
-            'filters' => ['status' => $request->string('status')->toString(), 'search' => $request->string('search')->toString()],
+            'filters' => [
+                'status' => $request->string('status')->toString(),
+                'search' => $request->string('search')->toString(),
+                'aircraft' => $aircraft,
+            ],
         ]);
     }
 

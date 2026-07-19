@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\ForcePasswordChangeController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -16,7 +18,10 @@ use Inertia\Inertia;
 Route::get('/', fn () => redirect()->route('dashboard'));
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', fn () => Inertia::render('Dashboard'))->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    // Global typeahead (grouped, permission-filtered) — JSON for the topbar.
+    Route::get('/search', SearchController::class)->name('search');
 
     // First-login forced password change (exempt from EnsurePasswordChanged).
     Route::get('/password/change', [ForcePasswordChangeController::class, 'edit'])->name('password.change');
@@ -33,7 +38,6 @@ Route::middleware('auth')->group(function () {
     | the sidebar is fully navigable today.
     */
     $modules = [
-        ['aircraft-types', 'Aircraft Types', 'Phase 4'],
         ['reports', 'Reports', 'Phase 5'],
     ];
 
@@ -45,6 +49,7 @@ Route::middleware('auth')->group(function () {
     }
 });
 
+require __DIR__.'/aircraft.php';
 require __DIR__.'/stock.php';
 require __DIR__.'/documents.php';
 require __DIR__.'/admin.php';

@@ -2,12 +2,16 @@
 
 namespace Database\Seeders;
 
+use App\Models\Aircraft;
 use App\Models\AtaChapter;
 use App\Models\Part;
 use App\Models\PartBatch;
 use App\Models\PartSerial;
+use App\Models\Requisition;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\WorkOrder;
+use App\Services\Stock\SerialStateService;
 use App\Services\Stock\StockService;
 use Illuminate\Database\Seeder;
 
@@ -68,5 +72,35 @@ class DemoStockSeeder extends Seeder
             'unit_of_issue' => 'L', 'unit_price' => 1200, 'is_fuel' => true, 'min_level' => 2000, 'reorder_level' => 5000,
         ]);
         $stock->fuelReceive(part: $avgas, quantity: 8000, user: $user);
+
+        // Parts on Aircraft — install the GPS serial onto a real airframe via the
+        // Phase 3 flow (issue → serial install), so the workspace has content.
+        $tbm = Aircraft::where('registration', '5N-BZA')->first();
+        if ($tbm) {
+            $stock->fuelIssue(part: $avgas, quantity: 320, aircraft: $tbm, user: $user);
+        }
+        if ($tbm && $sn->status === 'in_store') {
+            $stock->issue(part: $gps, store: $bonded, quantity: 1, user: $user, serialId: $sn->id, aircraftId: $tbm->id);
+            app(SerialStateService::class)->install($sn, $tbm, position: 'FWD AVIONICS BAY', user: $user);
+        }
+
+        // A couple of open work orders + a pending requisition across the fleet
+        // so the fleet grid badges and dashboard alerts show real numbers.
+        if ($tbm) {
+            WorkOrder::factory()->create([
+                'aircraft_id' => $tbm->id, 'status' => 'open',
+                'title' => 'SNAG: GPS unit intermittent', 'wo_ref' => 'FMD/TBM850/07/26/1401',
+            ]);
+            Requisition::factory()->submitted()->create([
+                'aircraft_id' => $tbm->id, 'full_description' => 'GPS/NAV/COMM Unit', 'part_no' => 'GTN-650',
+            ]);
+        }
+
+        $baron = Aircraft::where('registration', '5N-CAZ')->first();
+        if ($baron) {
+            WorkOrder::factory()->inspection()->create([
+                'aircraft_id' => $baron->id, 'status' => 'in_progress', 'wo_ref' => 'FMD/BARON58/07/26/1402',
+            ]);
+        }
     }
 }

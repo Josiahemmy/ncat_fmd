@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import {
     Activity,
     BarChart3,
     Boxes,
-    ClipboardCheck,
+    Fuel,
+    Layers,
     TrendingUp,
     Wrench,
 } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { StatCard } from '@/Components/ui/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/Card';
-import { EmptyState } from '@/Components/ui/EmptyState';
 import { Badge } from '@/Components/ui/Badge';
+import { AlertPanel } from '@/Components/dashboard/AlertPanel';
+import { ActivityFeed } from '@/Components/dashboard/ActivityFeed';
+import {
+    ConsumptionByTypeChart,
+    MovementsTrendChart,
+    ReceivingVsIssuingChart,
+} from '@/Components/dashboard/DashboardCharts';
 
 function greeting(d = new Date()) {
     const h = d.getHours();
@@ -29,17 +35,54 @@ const longDate = new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
 });
 
+const naira = new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 });
+
+/** Compact fuel tile with a mini level gauge (nominal 20,000 L dump). */
+function FuelTile({ litres = 0, delay = 0 }) {
+    const pct = Math.max(0, Math.min(1, litres / 20000));
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+        >
+            <Card variant="glass" className="group relative overflow-hidden p-5">
+                <div className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full bg-ncat-cyan/10 blur-2xl" />
+                <div className="flex items-start justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">Fuel on Hand</p>
+                    <span className="flex size-9 items-center justify-center rounded-lg bg-info/10 text-info">
+                        <Fuel className="size-[18px]" />
+                    </span>
+                </div>
+                <div className="mt-3 flex items-end gap-1">
+                    <span className="font-display text-3xl font-bold leading-none tracking-tight text-ncat-navy">
+                        {naira.format(litres)}
+                    </span>
+                    <span className="ml-1 text-base font-semibold text-muted-foreground">L</span>
+                </div>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct * 100}%` }}
+                        transition={{ duration: 0.9, delay: delay + 0.2, ease: [0.22, 1, 0.36, 1] }}
+                        className="h-full rounded-full bg-ncat-accent"
+                    />
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">Aviation fuel · Fuel Dump</p>
+            </Card>
+        </motion.div>
+    );
+}
+
 export default function Dashboard() {
-    const user = usePage().props.auth?.user ?? { name: 'there' };
+    const page = usePage().props;
+    const user = page.auth?.user ?? { name: 'there' };
     const firstName = (user.name || 'there').split(' ')[0];
 
-    // Simulate the initial data fetch so the KPI tiles play their
-    // skeleton → value reveal. Real figures arrive in Phase 4.
-    const [loading, setLoading] = useState(true);
-    useEffect(() => {
-        const t = setTimeout(() => setLoading(false), 750);
-        return () => clearTimeout(t);
-    }, []);
+    const alertCards = page.alertCards ?? [];
+    const kpis = page.kpis ?? {};
+    const charts = page.charts ?? {};
+    const activity = page.activity ?? [];
 
     return (
         <AppLayout>
@@ -50,7 +93,7 @@ export default function Dashboard() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
+                className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
             >
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
@@ -63,84 +106,101 @@ export default function Dashboard() {
                 </div>
                 <Badge variant="neutral" className="w-fit gap-1.5 py-1">
                     <span className="size-1.5 rounded-full bg-success" />
-                    System ready · Phase 0
+                    Command centre · live
                 </Badge>
             </motion.div>
+
+            {/* Alert panel (CAMP-style) */}
+            <section className="mb-6">
+                <div className="mb-2.5 flex items-center gap-2">
+                    <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-ncat-navy/70">
+                        Attention required
+                    </h2>
+                    <span className="h-px flex-1 bg-border" />
+                </div>
+                <AlertPanel cards={alertCards} />
+            </section>
 
             {/* KPI tiles */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
-                    label="Total Parts"
-                    value={0}
+                    label="Distinct Parts"
+                    value={kpis.distinct_parts ?? 0}
                     icon={Boxes}
                     tone="brand"
-                    loading={loading}
                     delay={0}
-                    hint="Catalogue lands in Phase 2"
+                    hint="In the catalogue"
+                />
+                <StatCard
+                    label="Stock Value"
+                    value={`₦${naira.format(kpis.stock_value ?? 0)}`}
+                    icon={Layers}
+                    tone="gold"
+                    delay={0.06}
+                    hint="Where prices are known"
                 />
                 <StatCard
                     label="Open Work Orders"
-                    value={0}
+                    value={kpis.open_work_orders ?? 0}
                     icon={Wrench}
                     tone="info"
-                    loading={loading}
-                    delay={0.06}
-                    hint="Documents land in Phase 3"
-                />
-                <StatCard
-                    label="Pending Approvals"
-                    value={0}
-                    icon={ClipboardCheck}
-                    tone="warning"
-                    loading={loading}
                     delay={0.12}
-                    hint="Requisition flow in Phase 3"
+                    hint="Snags + inspections"
                 />
-                <StatCard
-                    label="Fleet Aircraft"
-                    value={26}
-                    icon={TrendingUp}
-                    tone="brand"
-                    loading={loading}
-                    delay={0.18}
-                    hint="Across 6 aircraft types"
-                />
+                <FuelTile litres={kpis.fuel_litres ?? 0} delay={0.18} />
             </div>
 
-            {/* Charts / activity row */}
+            {/* Charts */}
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card variant="glass" className="lg:col-span-2">
-                    <CardHeader className="flex-row items-center justify-between space-y-0">
+                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="flex items-center gap-2">
-                            <BarChart3 className="size-[18px] text-primary" />
+                            <TrendingUp className="size-[18px] text-primary" />
                             Stock Movement Trend
                         </CardTitle>
-                        <Badge variant="outline">Phase 4</Badge>
+                        <Badge variant="outline">Last 12 weeks</Badge>
                     </CardHeader>
-                    <CardContent>
-                        <EmptyState
-                            icon={BarChart3}
-                            title="No movement data yet"
-                            description="Once receiving and issuing go live, this chart plots stock in/out across the department's fleet."
-                            className="border-0 bg-transparent py-10"
-                        />
+                    <CardContent className="pt-2">
+                        <MovementsTrendChart data={charts.movements_trend} />
                     </CardContent>
                 </Card>
 
                 <Card variant="glass">
-                    <CardHeader className="flex-row items-center justify-between space-y-0">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="size-[18px] text-primary" />
+                            Consumption by Type
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                        <ConsumptionByTypeChart data={charts.consumption_by_type} />
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <Card variant="glass" className="lg:col-span-2">
+                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="size-[18px] text-primary" />
+                            Receiving vs Issuing
+                        </CardTitle>
+                        <Badge variant="outline">Last 12 months</Badge>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                        <ReceivingVsIssuingChart data={charts.receiving_vs_issuing} />
+                    </CardContent>
+                </Card>
+
+                <Card variant="glass">
+                    <CardHeader className="pb-2">
                         <CardTitle className="flex items-center gap-2">
                             <Activity className="size-[18px] text-primary" />
                             Recent Activity
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <EmptyState
-                            icon={Activity}
-                            title="Nothing logged yet"
-                            description="User actions and stock transactions will appear here as an audit feed."
-                            className="border-0 bg-transparent py-10"
-                        />
+                    <CardContent className="max-h-[420px] overflow-y-auto pt-2">
+                        <ActivityFeed items={activity} />
                     </CardContent>
                 </Card>
             </div>

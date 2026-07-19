@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Requisition;
+use App\Models\StockMovement;
+use App\Models\WorkOrder;
+use App\Services\Dashboard\DashboardService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
@@ -43,5 +47,13 @@ class AppServiceProvider extends ServiceProvider
                 activity('auth')->causedBy($event->user)->event('logout')->log('Signed out');
             }
         });
+
+        // Keep the cached dashboard aggregates fresh: any ledger posting or
+        // document status change invalidates the 60s cache so the alert panel,
+        // KPIs and the shared notification-bell counts never go stale.
+        $bust = fn () => app(DashboardService::class)->bust();
+        StockMovement::created($bust);
+        Requisition::saved($bust);
+        WorkOrder::saved($bust);
     }
 }
