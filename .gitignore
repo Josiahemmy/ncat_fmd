@@ -38,3 +38,7 @@ docs.txt
 /skill-observations/
 /office.ncatfmd.com.ng/
 
+
+# Microsoft Office lock/temp files
+~$*
+*.tmp
