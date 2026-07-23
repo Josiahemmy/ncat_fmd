@@ -92,7 +92,7 @@ class OpeningBalanceController extends Controller
         $result = $this->importer->import($data['rows'], $request->user());
 
         if (! $result['committed']) {
-            return back()->with('error', 'Import aborted — some rows are invalid. Fix them and retry.');
+            return back()->with('error', 'Import aborted. Some rows are invalid, fix them and retry.');
         }
 
         return redirect()->route('parts.index')

@@ -22,11 +22,11 @@ export default function SivIndex({ sivs, filters }) {
 
     return (
         <AppLayout>
-            <Head title="Issuing — SIV" />
+            <Head title="Issuing - SIV" />
             <PageHeader
                 eyebrow="Operations"
-                title="Issuing — SIV"
-                description="Store Issue Vouchers — parts issued out of bonded and dope stores against approved requisitions."
+                title="Issuing - SIV"
+                description="Store Issue Vouchers for parts issued out of bonded and dope stores against approved requisitions."
                 icon={PackageMinus}
                 actions={can('issues.post') && (
                     <Button onClick={() => router.visit(route('issuing.create'))}>

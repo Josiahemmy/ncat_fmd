@@ -43,7 +43,7 @@ export default function OpeningBalancesIndex({ stores, parts, preview, rows }) {
                             <div className="space-y-1.5">
                                 <Label>Part</Label>
                                 <Select value={manual.data.part_id} onChange={(e) => manual.setData('part_id', e.target.value)}>
-                                    {parts.map((p) => <option key={p.id} value={p.id}>{p.part_number} — {p.description}</option>)}
+                                    {parts.map((p) => <option key={p.id} value={p.id}>{p.part_number} - {p.description}</option>)}
                                 </Select>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
@@ -86,7 +86,7 @@ export default function OpeningBalancesIndex({ stores, parts, preview, rows }) {
             {preview && (
                 <Card className="mt-6 overflow-hidden">
                     <CardHeader className="flex-row items-center justify-between space-y-0">
-                        <CardTitle>Import preview — {preview.length} rows, {preview.filter((p) => p.valid).length} valid</CardTitle>
+                        <CardTitle>Import preview: {preview.length} rows, {preview.filter((p) => p.valid).length} valid</CardTitle>
                         <Button onClick={commit} disabled={!allValid}>
                             {allValid ? `Commit ${preview.length} rows` : 'Fix errors to commit'}
                         </Button>

@@ -36,7 +36,7 @@ export default function Placeholder({ module = 'This module', phase = 'a later p
                         </h1>
                         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                             This module is part of the phased build-out. The foundation, design
-                            system and navigation are live now — {module} arrives in {phase}.
+                            system and navigation are live now. {module} arrives in {phase}.
                         </p>
 
                         <div className="mt-8 flex items-center justify-center gap-2 text-xs text-muted-foreground">

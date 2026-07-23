@@ -95,7 +95,7 @@ export function NotificationsBell() {
 
                     <div className="max-h-[70vh] overflow-y-auto p-1.5">
                         {groups.length === 0 && (
-                            <p className="px-2.5 py-8 text-center text-sm text-muted-foreground">All clear — nothing needs attention.</p>
+                            <p className="px-2.5 py-8 text-center text-sm text-muted-foreground">All clear. Nothing needs attention.</p>
                         )}
 
                         {groups.map((g) => {

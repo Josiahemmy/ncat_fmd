@@ -20,7 +20,7 @@ class AtaChapterSeeder extends Seeder
             '10' => 'Parking, Mooring, Storage & Return to Service',
             '11' => 'Placards & Markings',
             '12' => 'Servicing',
-            '20' => 'Standard Practices — Airframe',
+            '20' => 'Standard Practices - Airframe',
             '21' => 'Air Conditioning',
             '22' => 'Auto Flight',
             '23' => 'Communications',

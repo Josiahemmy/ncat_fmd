@@ -266,7 +266,7 @@ class DemoSeeder
                 ['num' => 'DOPE-1L', 'qty' => 20, 'rate' => 6100],
             ], $quarantine, supplier: 'ChemAv Nigeria', lpo: 'LPO-2024-133');
             foreach ($srv->items as $item) {
-                $this->stock->certify(part: $item->part, quantity: (float) $item->quantity, decision: 'release_to_dope', user: $this->storeman, remarks: 'Flammable — routed to Dope');
+                $this->stock->certify(part: $item->part, quantity: (float) $item->quantity, decision: 'release_to_dope', user: $this->storeman, remarks: 'Flammable, routed to Dope');
             }
         });
 
@@ -318,7 +318,7 @@ class DemoSeeder
         $this->at(35, 13, function () use ($bonded, $dope) {
             // Transfer a little sealant handling stock Bonded↔Dope is not valid
             // (flammable lives in Dope); instead adjust with reasons.
-            $this->stock->adjust(part: $this->p('AN960-416'), store: $bonded, delta: -12, reason: 'Stocktake correction — miscount', user: $this->storeman);
+            $this->stock->adjust(part: $this->p('AN960-416'), store: $bonded, delta: -12, reason: 'Stocktake correction, miscount', user: $this->storeman);
             $this->stock->adjust(part: $this->p('MS29513-014'), store: $bonded, delta: 6, reason: 'Found stock returned unused', user: $this->storeman);
             // Move some MEK within Dope is n/a; keep dope stocked.
             unset($dope);

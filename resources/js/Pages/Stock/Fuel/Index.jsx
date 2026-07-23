@@ -26,7 +26,7 @@ export default function FuelIndex({ fuels, aircraft, movements = [] }) {
             <PageHeader
                 eyebrow="Operations"
                 title="Fuel Dump"
-                description="Aviation fuel — received and issued in litres, tagged to aircraft."
+                description="Aviation fuel received and issued in litres, tagged to aircraft."
                 icon={Fuel}
             />
 

@@ -55,7 +55,7 @@ class DemoPurger
     {
         // Step 1 — safety backup. Abort the whole purge if it fails.
         if (! $this->backup->run()) {
-            throw new RuntimeException('Database backup failed — purge aborted. No data was deleted.');
+            throw new RuntimeException('Database backup failed. Purge aborted, no data was deleted.');
         }
 
         // Snapshot the counter restore target before we touch anything.

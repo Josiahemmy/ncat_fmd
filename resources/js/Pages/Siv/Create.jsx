@@ -82,7 +82,7 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
             <PageHeader
                 eyebrow={<Link href={route('issuing.index')} className="inline-flex items-center gap-1 hover:text-primary"><ArrowLeft className="size-3" /> Issuing</Link>}
                 title="New store issue voucher"
-                description={<>Store Issue Voucher — issue parts from bonded / dope stores. Will be reserved as <span className="font-mono font-semibold text-ncat-navy">{nextNumber}</span>.</>}
+                description={<>Store Issue Voucher for issuing parts from bonded / dope stores. Will be reserved as <span className="font-mono font-semibold text-ncat-navy">{nextNumber}</span>.</>}
                 icon={PackageMinus}
             />
 
@@ -164,10 +164,10 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
                                         <div className="mb-4">
                                             <Field label="Pull from approved requisition (optional)" error={form.errors[`items.${i}.requisition_id`]}>
                                                 <Select value={it.requisition_id} onChange={(e) => pullRequisition(i, e.target.value)}>
-                                                    <option value="">Standalone line — no requisition</option>
+                                                    <option value="">Standalone line (no requisition)</option>
                                                     {approvedRequisitions.map((r) => (
                                                         <option key={r.id} value={r.id}>
-                                                            {r.requisition_no} — {r.full_description}{r.aircraft ? ` (${r.aircraft})` : ''}
+                                                            {r.requisition_no} - {r.full_description}{r.aircraft ? ` (${r.aircraft})` : ''}
                                                         </option>
                                                     ))}
                                                 </Select>
@@ -180,7 +180,7 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
                                                     <Select value={it.part_id} onChange={(e) => setItem(i, { part_id: e.target.value })}>
                                                         <option value="">Select part…</option>
                                                         {parts.map((pt) => (
-                                                            <option key={pt.id} value={pt.id}>{pt.part_number}{pt.description ? ` — ${pt.description}` : ''}</option>
+                                                            <option key={pt.id} value={pt.id}>{pt.part_number}{pt.description ? ` - ${pt.description}` : ''}</option>
                                                         ))}
                                                     </Select>
                                                 </Field>
@@ -222,7 +222,7 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
                                             <div className="mt-4 rounded-md border border-dashed border-border bg-muted/30 p-3">
                                                 <Field label="Serial IDs to issue" error={form.errors[`items.${i}.serial_ids`]}>
                                                     <Input
-                                                        placeholder="Enter serial record IDs, comma separated — e.g. 12, 15, 18"
+                                                        placeholder="Enter serial record IDs, comma separated, e.g. 12, 15, 18"
                                                         value={(it.serial_ids || []).join(', ')}
                                                         onChange={(e) => setItem(i, {
                                                             serial_ids: e.target.value.split(',')
@@ -232,7 +232,7 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
                                                                 .filter((n) => Number.isInteger(n)),
                                                         })}
                                                     />
-                                                    <p className="mt-1 text-xs text-muted-foreground">Serialised part — enter the serial record IDs being issued.</p>
+                                                    <p className="mt-1 text-xs text-muted-foreground">Serialised part. Enter the serial record IDs being issued.</p>
                                                 </Field>
                                             </div>
                                         )}

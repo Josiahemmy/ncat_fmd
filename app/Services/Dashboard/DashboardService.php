@@ -98,18 +98,18 @@ class DashboardService
      */
     public function alertSamples(int $per = 5): array
     {
-        $partLine = fn ($p) => ['label' => $p->part_number.' — '.$p->description, 'href' => route('parts.show', $p->id)];
+        $partLine = fn ($p) => ['label' => $p->part_number.' - '.$p->description, 'href' => route('parts.show', $p->id)];
 
         return [
             'below_reorder' => $this->alerts->belowReorder()->take($per)->map($partLine)->values()->all(),
             'below_min' => $this->alerts->belowMin()->take($per)->map($partLine)->values()->all(),
             'above_max' => $this->alerts->aboveMax()->take($per)->map($partLine)->values()->all(),
             'expired' => $this->alerts->expired()->take($per)->map(fn ($b) => [
-                'label' => optional($b->part)->part_number.' — expired '.$b->expiry_date?->toDateString(),
+                'label' => optional($b->part)->part_number.' - expired '.$b->expiry_date?->toDateString(),
                 'href' => $b->part ? route('parts.show', $b->part_id) : '#',
             ])->values()->all(),
             'expiring' => $this->alerts->expiringWithin(90)->take($per)->map(fn ($b) => [
-                'label' => optional($b->part)->part_number.' — expiring '.$b->expiry_date?->toDateString(),
+                'label' => optional($b->part)->part_number.' - expiring '.$b->expiry_date?->toDateString(),
                 'href' => $b->part ? route('parts.show', $b->part_id) : '#',
             ])->values()->all(),
             'quarantine' => Part::query()
@@ -118,12 +118,12 @@ class DashboardService
                 ->limit($per)->get()->map($partLine)->values()->all(),
             'requisitions_pending' => Requisition::where('status', 'submitted')
                 ->orderByDesc('id')->limit($per)->get()->map(fn ($r) => [
-                    'label' => $r->requisition_no.' — '.$r->full_description,
+                    'label' => $r->requisition_no.' - '.$r->full_description,
                     'href' => route('requisitions.show', $r->id),
                 ])->values()->all(),
             'open_work_orders' => WorkOrder::whereIn('status', self::OPEN_WO_STATUSES)
                 ->orderByDesc('id')->limit($per)->get()->map(fn ($w) => [
-                    'label' => $w->wo_ref.' — '.$w->title,
+                    'label' => $w->wo_ref.' - '.$w->title,
                     'href' => route('work-orders.show', $w->id),
                 ])->values()->all(),
         ];

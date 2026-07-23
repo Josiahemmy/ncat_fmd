@@ -7,12 +7,12 @@
 
 @section('title', 'Tally Card '.$part->part_number)
 @section('form-title', $consolidated ? 'Tally Card AD38' : 'Store Tally Card')
-@section('form-sub', $consolidated ? 'CONSOLIDATED — all stores (non-AD38)' : 'AD38')
+@section('form-sub', $consolidated ? 'CONSOLIDATED: all stores (non-AD38)' : 'AD38')
 @section('doc-no', $storeName)
 
 @section('body')
     @if($consolidated)
-        <div class="section-bar">CONSOLIDATED — all stores (non-AD38)</div>
+        <div class="section-bar">CONSOLIDATED: all stores (non-AD38)</div>
     @endif
 
     <table class="grid">

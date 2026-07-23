@@ -16,7 +16,7 @@ class DemoPurge extends Command
     public function handle(DemoPurger $purger): int
     {
         $this->warn('demo:purge empties EVERY transactional table (stock, documents, movements, activity).');
-        $this->line('Premise: production has NOT started, so a full truncate is safe. This STOPS being true the day real data enters — do not run it thereafter.');
+        $this->line('Premise: production has NOT started, so a full truncate is safe. This STOPS being true the day real data enters, so do not run it thereafter.');
 
         if (! $this->option('i-understand-this-deletes-all-transactional-data')) {
             $this->error('Refused: pass --i-understand-this-deletes-all-transactional-data to proceed.');
@@ -28,7 +28,7 @@ class DemoPurge extends Command
             $expected = (string) config('app.name');
             $typed = (string) $this->ask("Type the application name (\"{$expected}\") to confirm the purge");
             if (trim($typed) !== $expected) {
-                $this->error('Confirmation did not match — aborted. Nothing was deleted.');
+                $this->error('Confirmation did not match. Aborted, nothing was deleted.');
 
                 return self::FAILURE;
             }

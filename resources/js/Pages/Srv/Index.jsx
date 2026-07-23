@@ -22,11 +22,11 @@ export default function SrvIndex({ srvs, filters }) {
 
     return (
         <AppLayout>
-            <Head title="Receiving — SRV" />
+            <Head title="Receiving - SRV" />
             <PageHeader
                 eyebrow="Operations"
-                title="Receiving — SRV"
-                description="Store Receipt Vouchers — goods received into stores against LPO or petty cash."
+                title="Receiving - SRV"
+                description="Store Receipt Vouchers for goods received into stores against LPO or petty cash."
                 icon={PackagePlus}
                 actions={can('receiving.post') && (
                     <Button onClick={() => router.visit(route('receiving.create'))}>

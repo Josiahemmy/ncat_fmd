@@ -137,7 +137,7 @@ class SivController extends Controller
 
         $service->post($siv, $request->user());
 
-        return redirect()->route('issuing.show', $siv)->with('success', "SIV {$siv->siv_number} posted — stock issued.");
+        return redirect()->route('issuing.show', $siv)->with('success', "SIV {$siv->siv_number} posted. Stock issued.");
     }
 
     protected function syncItems(Siv $siv, array $items): void

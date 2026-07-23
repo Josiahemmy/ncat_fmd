@@ -68,7 +68,7 @@ export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, ne
             <PageHeader
                 eyebrow={<Link href={route('receiving.index')} className="inline-flex items-center gap-1 hover:text-primary"><ArrowLeft className="size-3" /> Receiving</Link>}
                 title="New store receipt voucher"
-                description={<>Store Receipt Voucher — receive goods into stores. Will be reserved as <span className="font-mono font-semibold text-ncat-navy">{nextNumber}</span>.</>}
+                description={<>Store Receipt Voucher for receiving goods into stores. Will be reserved as <span className="font-mono font-semibold text-ncat-navy">{nextNumber}</span>.</>}
                 icon={PackagePlus}
             />
 
@@ -146,7 +146,7 @@ export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, ne
                                                     <Select value={it.part_id} onChange={(e) => setItem(i, { part_id: e.target.value })}>
                                                         <option value="">Select part…</option>
                                                         {parts.map((pt) => (
-                                                            <option key={pt.id} value={pt.id}>{pt.part_number}{pt.description ? ` — ${pt.description}` : ''}</option>
+                                                            <option key={pt.id} value={pt.id}>{pt.part_number}{pt.description ? ` - ${pt.description}` : ''}</option>
                                                         ))}
                                                     </Select>
                                                 </Field>

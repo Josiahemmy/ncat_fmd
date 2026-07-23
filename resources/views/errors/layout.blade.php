@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#101A62">
     <meta name="robots" content="noindex, nofollow">
-    <title>@yield('code') · @yield('title') — NCAT FMD</title>
+    <title>@yield('code') · @yield('title') · NCAT FMD</title>
     <link rel="icon" href="/brand/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32x32.png">
     <style>
@@ -211,7 +211,7 @@
             <a class="btn btn-ghost" href="/login">Sign in</a>
         </nav>
 
-        <p class="footer">NCAT · Flight Maintenance Department — Inventory &amp; Stores</p>
+        <p class="footer">NCAT · Flight Maintenance Department · Inventory &amp; Stores</p>
     </main>
 </body>
 </html>

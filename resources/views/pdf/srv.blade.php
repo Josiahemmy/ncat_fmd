@@ -46,7 +46,7 @@
                         <span class="num">{{ $it['quantity'] !== null ? rtrim(rtrim(number_format($it['quantity'], 2), '0'), '.') : '' }}</span>
                         @if($it['quantity_words'])<br><span class="muted" style="font-size:7px;">{{ ucfirst($it['quantity_words']) }}</span>@endif
                     </td>
-                    <td>{{ $it['supplier_details'] }}{{ $it['description'] ? ($it['supplier_details'] ? ' — ' : '').$it['description'] : '' }}</td>
+                    <td>{{ $it['supplier_details'] }}{{ $it['description'] ? ($it['supplier_details'] ? ' - ' : '').$it['description'] : '' }}</td>
                     <td>{{ $it['part_number'] }}</td>
                     <td class="c">{{ $it['fol_no'] }}</td>
                     <td class="r">{{ $it['rate'] !== null ? number_format($it['rate'], 2) : '' }}</td>

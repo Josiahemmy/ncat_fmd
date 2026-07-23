@@ -47,7 +47,7 @@ export default function PartsIndex({ parts, stores, ataChapters, types, filters 
                     </div>
                     <Select value={f.ata} onChange={(e) => set('ata', e.target.value)}>
                         <option value="">All ATA</option>
-                        {ataChapters.map((a) => <option key={a.id} value={a.id}>{a.chapter_number} — {a.title}</option>)}
+                        {ataChapters.map((a) => <option key={a.id} value={a.id}>{a.chapter_number} - {a.title}</option>)}
                     </Select>
                     <Select value={f.type} onChange={(e) => set('type', e.target.value)}>
                         <option value="">All types</option>
@@ -189,7 +189,7 @@ function PartFormModal({ part, ataChapters, types, onClose }) {
                             <Label>ATA chapter</Label>
                             <Select value={form.data.ata_chapter_id} onChange={(e) => form.setData('ata_chapter_id', e.target.value)}>
                                 <option value="">—</option>
-                                {ataChapters.map((a) => <option key={a.id} value={a.id}>{a.chapter_number} — {a.title}</option>)}
+                                {ataChapters.map((a) => <option key={a.id} value={a.id}>{a.chapter_number} - {a.title}</option>)}
                             </Select>
                         </div>
                         <div className="space-y-1.5">

@@ -164,7 +164,7 @@ export default function RequisitionShow({ requisition, flow }) {
                 </div>
 
                 <div className="mt-2 flex justify-between px-1 text-[0.65rem] uppercase text-muted-foreground print:text-black">
-                    <span>Use ballpoint pen — lean heavily</span>
+                    <span>Use ballpoint pen, lean heavily</span>
                     {r.requested_by && <span>Raised by: {r.requested_by}</span>}
                 </div>
             </div>

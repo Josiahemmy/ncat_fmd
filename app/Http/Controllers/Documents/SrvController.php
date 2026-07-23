@@ -127,7 +127,7 @@ class SrvController extends Controller
         $service->post($srv, $request->user());
 
         return redirect()->route('receiving.show', $srv)
-            ->with('success', "SRV {$srv->srv_number} posted — stock received into {$srv->destinationStore->name}.");
+            ->with('success', "SRV {$srv->srv_number} posted. Stock received into {$srv->destinationStore->name}.");
     }
 
     protected function syncItems(Srv $srv, array $items): void

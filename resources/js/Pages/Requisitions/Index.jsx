@@ -27,7 +27,7 @@ export default function RequisitionsIndex({ requisitions, aircraft, filters }) {
             <PageHeader
                 eyebrow="Operations"
                 title="Requisitions"
-                description="Aircraft spare parts requisitions — one voucher per unit, from draft through approval to issue."
+                description="Aircraft spare parts requisitions. One voucher per unit, from draft through approval to issue."
                 icon={ScrollText}
                 actions={canCreate && (
                     <Button onClick={() => router.visit(route('requisitions.create'))}>

@@ -133,7 +133,7 @@ class TallyService
         };
 
         if ($m->aircraft) {
-            $label .= " — {$m->aircraft->registration}";
+            $label .= " - {$m->aircraft->registration}";
         }
 
         return $label;

@@ -21,7 +21,7 @@ export default function ReportsIndex({ reports = [] }) {
             <PageHeader
                 eyebrow="Analytics"
                 title="Reports"
-                description="Inventory intelligence — stock levels, movements, expiry, consumption and quarantine, ready to export."
+                description="Inventory intelligence: stock levels, movements, expiry, consumption and quarantine, ready to export."
                 icon={BarChart3}
             />
 

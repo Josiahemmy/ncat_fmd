@@ -54,7 +54,7 @@ export default function AuthLayout({ title, subtitle, children }) {
                         </h2>
                         <p className="mt-4 text-sm leading-relaxed text-white/70">
                             Work orders, requisitions, receiving and issuing across 26 aircraft
-                            and four stores — one auditable ledger, one command console.
+                            and four stores. One auditable ledger, one command console.
                         </p>
                     </motion.div>
 

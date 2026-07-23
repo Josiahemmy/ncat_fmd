@@ -84,7 +84,7 @@ class SivService
     {
         $store = $item->sourceStore;
         if (! in_array($store->type, self::ISSUABLE_STORE_TYPES, true)) {
-            throw new StockException("Cannot issue from {$store->name} — issues are Bonded/Dope only.");
+            throw new StockException("Cannot issue from {$store->name}. Issues are Bonded/Dope only.");
         }
 
         $qty = (float) $item->qty_issued;

@@ -30,7 +30,7 @@ export default function WorkOrdersIndex({ workOrders, aircraft, filters, presets
             <PageHeader
                 eyebrow="Operations"
                 title="Work Orders"
-                description="The department's work order register — snags and scheduled inspections, mirroring the ledger."
+                description="The department's work order register for snags and scheduled inspections, mirroring the ledger."
                 icon={Wrench}
                 actions={canCreate && <Button onClick={() => setCreating(true)}><Plus className="size-4" /> New work order</Button>}
             />

@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#101A62">
-        <meta name="description" content="NCAT Flight Maintenance Department — Inventory & Stores Management System.">
+        <meta name="description" content="NCAT Flight Maintenance Department Inventory & Stores Management System.">
 
         <title inertia>{{ config('app.name', 'NCAT FMD Inventory') }}</title>
 

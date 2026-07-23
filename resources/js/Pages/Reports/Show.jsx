@@ -210,7 +210,7 @@ export default function ReportShow({
 
             {rows.length === truncatedAt && (
                 <p className="mt-3 text-center text-xs text-muted-foreground">
-                    Showing first {truncatedAt} rows — export CSV for the full set.
+                    Showing first {truncatedAt} rows. Export CSV for the full set.
                 </p>
             )}
         </AppLayout>

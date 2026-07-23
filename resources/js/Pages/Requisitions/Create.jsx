@@ -62,7 +62,7 @@ export default function RequisitionsCreate({ aircraft, parts, workOrders, workOr
             <PageHeader
                 eyebrow={<Link href={route('requisitions.index')} className="inline-flex items-center gap-1 hover:text-primary"><ArrowLeft className="size-3" /> Requisitions</Link>}
                 title="Raise requisition"
-                description="Aircraft Spare Parts Requisition Sheet — one voucher per unit."
+                description="Aircraft Spare Parts Requisition Sheet. One voucher per unit."
                 icon={ScrollText}
             />
 
@@ -72,7 +72,7 @@ export default function RequisitionsCreate({ aircraft, parts, workOrders, workOr
                     <section className="space-y-4">
                         <div className="border-b border-border pb-2">
                             <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-ncat-navy">Required for</h3>
-                            <p className="text-xs text-muted-foreground">One voucher per unit — no quantity field.</p>
+                            <p className="text-xs text-muted-foreground">One voucher per unit. No quantity field.</p>
                         </div>
                         <Field label="Work order" error={form.errors.work_order_id}>
                             <Select value={form.data.work_order_id} onChange={(e) => form.setData('work_order_id', e.target.value)}>
@@ -118,7 +118,7 @@ export default function RequisitionsCreate({ aircraft, parts, workOrders, workOr
                             <Select value={form.data.part_id} onChange={(e) => pickPart(e.target.value)}>
                                 <option value="">Not in catalogue / free text</option>
                                 {parts.map((p) => (
-                                    <option key={p.id} value={p.id}>{p.part_number}{p.description ? ` — ${p.description}` : ''}</option>
+                                    <option key={p.id} value={p.id}>{p.part_number}{p.description ? ` - ${p.description}` : ''}</option>
                                 ))}
                             </Select>
                         </Field>
