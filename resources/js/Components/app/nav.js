@@ -40,7 +40,7 @@ export const navItems = [
         group: 'system',
         permissionsAny: [
             'users.view', 'roles.view', 'aircraft.view', 'stores.view',
-            'ata.view', 'counters.view', 'audit.view',
+            'ata.view', 'counters.view', 'audit.view', 'approvals.manage',
         ],
     },
 ];

@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\NotificationController;
 use App\Services\Dashboard\DashboardService;
+use App\Services\Documents\ApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Inertia\Middleware;
@@ -61,6 +63,9 @@ class HandleInertiaRequests extends Middleware
             ],
             // Live stock alerts for the notification bell (count + list).
             'alerts' => fn () => $this->alerts($user),
+            // Event notifications from the database channel (approval decisions,
+            // low stock). A separate path from `alerts`, which stays computed.
+            'notices' => fn () => $this->notices($user),
             // Sidebar work-queue badges (approvals for approvers, quarantine for certifiers).
             'badges' => fn () => $this->badges($user),
             // Demo-mode banner flag (Builder Prompt #7) — cheap cached read.
@@ -84,8 +89,15 @@ class HandleInertiaRequests extends Middleware
         $counts = app(DashboardService::class)->aggregates()['alerts'];
         $badges = [];
 
-        if ($user->can('requisitions.approve')) {
-            $badges['approvals'] = $counts['requisitions_pending'];
+        // Whether this user can approve at all depends on the configured levels,
+        // not a fixed permission. The badge then counts only what is actually
+        // waiting on them, and skips the query entirely when nothing is pending.
+        $approvals = app(ApprovalService::class);
+
+        if ($approvals->canApproveAnyLevel($user)) {
+            $badges['approvals'] = $counts['requisitions_pending'] > 0
+                ? $approvals->pendingForCount($user)
+                : 0;
         }
 
         if ($user->can('quarantine.certify')) {
@@ -105,6 +117,27 @@ class HandleInertiaRequests extends Middleware
     protected function alerts($user): array
     {
         return app(DashboardService::class)->sharedAlerts($user);
+    }
+
+    /**
+     * Unread event notifications for the bell: a count plus the newest few.
+     *
+     * @return array<string, mixed>
+     */
+    protected function notices($user): array
+    {
+        if (! $user) {
+            return ['count' => 0, 'items' => []];
+        }
+
+        return [
+            'count' => $user->unreadNotifications()->count(),
+            'items' => $user->unreadNotifications()
+                ->latest()->limit(NotificationController::BELL_LIMIT)->get()
+                ->map(fn ($n) => NotificationController::present($n))
+                ->values()
+                ->all(),
+        ];
     }
 
     /** @return array<int, string> */

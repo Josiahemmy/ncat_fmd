@@ -7,18 +7,23 @@ use App\Models\Aircraft;
 use App\Models\Part;
 use App\Models\PartSerial;
 use App\Models\Requisition;
+use App\Models\Store;
 use App\Models\WorkOrder;
+use App\Services\Documents\ApprovalService;
 use App\Services\Documents\DocumentNumberService;
 use App\Services\Stock\SerialStateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RequisitionController extends Controller
 {
+    public function __construct(protected ApprovalService $approvals)
+    {
+    }
+
     public function index(Request $request): Response
     {
         $filters = [
@@ -64,19 +69,39 @@ class RequisitionController extends Controller
         activity('requisition')->causedBy($request->user())->performedOn($requisition)
             ->event('created')->log("Raised requisition {$requisition->requisition_no}");
 
+        if ($requisition->status === 'submitted') {
+            $this->approvals->onSubmitted($requisition);
+        }
+
         return redirect()->route('requisitions.show', $requisition)
             ->with('success', "Requisition {$requisition->requisition_no} saved.");
     }
 
-    public function show(Requisition $requisition): Response
+    public function show(Request $request, Requisition $requisition): Response
     {
         $requisition->load([
             'aircraft.aircraftType', 'part', 'workOrder:id,wo_ref',
             'requestedBy:id,name', 'approvedBy:id,name', 'removedSerial',
         ]);
 
+        $pending = $this->approvals->pending($requisition);
+
         return Inertia::render('Requisitions/Show', [
             'requisition' => $this->fullRow($requisition),
+            'approval' => [
+                'trail' => $this->approvals->trail($requisition),
+                'pending' => $pending ? [
+                    'level_name' => $pending->level_name,
+                    'binding' => $pending->role_name
+                        ? "Role: {$pending->role_name}"
+                        : "Permission: {$pending->permission_name}",
+                    'binding_type' => $pending->role_name ? 'role' : 'permission',
+                    'binding_value' => $pending->role_name ?? $pending->permission_name,
+                    'sequence' => $pending->sequence,
+                ] : null,
+                // Whether *this* viewer may act, not merely whether a level is open.
+                'canDecide' => $this->approvals->canAct($request->user(), $requisition),
+            ],
             'flow' => [
                 'canApprove' => $requisition->status === 'submitted',
                 'canRemoval' => in_array($requisition->status, ['issued', 'closed'], true),
@@ -92,6 +117,7 @@ class RequisitionController extends Controller
 
         if ($request->input('submit')) {
             $requisition->update(['status' => 'submitted']);
+            $this->approvals->onSubmitted($requisition);
         }
 
         return redirect()->route('requisitions.show', $requisition)->with('success', 'Requisition updated.');
@@ -101,49 +127,31 @@ class RequisitionController extends Controller
     {
         abort_unless($requisition->status === 'draft', 422, 'Only a draft can be submitted.');
         $requisition->update(['status' => 'submitted']);
+        $this->approvals->onSubmitted($requisition);
 
         return back()->with('success', "Requisition {$requisition->requisition_no} submitted for approval.");
     }
 
     public function approve(Request $request, Requisition $requisition): RedirectResponse
     {
-        abort_unless($requisition->status === 'submitted', 422, 'Only a submitted requisition can be approved.');
+        $level = $this->approvals->approve(
+            $requisition,
+            $request->user(),
+            $request->string('remarks')->toString() ?: null,
+        );
 
-        // Segregation of duties: an approver may not approve their own requisition.
-        if ($requisition->requested_by_user_id === $request->user()->id) {
-            throw ValidationException::withMessages([
-                'approval' => 'You cannot approve a requisition you raised.',
-            ]);
-        }
+        $message = $requisition->fresh()->status === 'approved'
+            ? "Requisition {$requisition->requisition_no} approved. Ready for issue."
+            : "{$level->level_name} recorded on {$requisition->requisition_no}. Sent to the next level.";
 
-        $requisition->update([
-            'status' => 'approved',
-            'approved_by_user_id' => $request->user()->id,
-            'approved_at' => now(),
-            'approval_remarks' => $request->string('remarks')->toString() ?: null,
-        ]);
-
-        activity('requisition')->causedBy($request->user())->performedOn($requisition)
-            ->event('approved')->log("Approved requisition {$requisition->requisition_no}");
-
-        return back()->with('success', "Requisition {$requisition->requisition_no} approved.");
+        return back()->with('success', $message);
     }
 
     public function reject(Request $request, Requisition $requisition): RedirectResponse
     {
-        abort_unless($requisition->status === 'submitted', 422, 'Only a submitted requisition can be rejected.');
-
         $data = $request->validate(['remarks' => ['required', 'string', 'max:1000']]);
 
-        $requisition->update([
-            'status' => 'rejected',
-            'approved_by_user_id' => $request->user()->id,
-            'rejected_at' => now(),
-            'approval_remarks' => $data['remarks'],
-        ]);
-
-        activity('requisition')->causedBy($request->user())->performedOn($requisition)
-            ->event('rejected')->log("Rejected requisition {$requisition->requisition_no}");
+        $this->approvals->reject($requisition, $request->user(), $data['remarks']);
 
         return back()->with('success', "Requisition {$requisition->requisition_no} rejected.");
     }
@@ -216,12 +224,19 @@ class RequisitionController extends Controller
 
     protected function formData(Request $request): array
     {
+        // Raised from a store page: the originating store pre-fills the paper
+        // form's "Supply source" box, which is where that context belongs.
+        $store = $request->integer('store')
+            ? Store::where('type', '!=', 'quarantine')->find($request->integer('store'))
+            : null;
+
         return [
             'aircraft' => Aircraft::orderBy('registration')->get(['id', 'registration']),
             'parts' => Part::orderBy('part_number')->get(['id', 'part_number', 'description', 'stock_code']),
             'workOrders' => WorkOrder::whereIn('status', ['open', 'in_progress'])
                 ->orderByDesc('id')->get(['id', 'wo_ref', 'aircraft_id']),
             'workOrderId' => $request->integer('work_order_id') ?: null,
+            'originStore' => $store ? ['id' => $store->id, 'name' => $store->name] : null,
         ];
     }
 

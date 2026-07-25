@@ -18,7 +18,7 @@ function Field({ label, error, children }) {
     );
 }
 
-export default function RequisitionsCreate({ aircraft, parts, workOrders, workOrderId }) {
+export default function RequisitionsCreate({ aircraft, parts, workOrders, workOrderId, originStore }) {
     const form = useForm({
         work_order_id: workOrderId ? String(workOrderId) : '',
         aircraft_id: '',
@@ -26,7 +26,8 @@ export default function RequisitionsCreate({ aircraft, parts, workOrders, workOr
         engine_serial_no: '',
         position: '',
         authorised_by: '',
-        supply_source: '',
+        // Raised from a store page: that store is the supply source on the sheet.
+        supply_source: originStore?.name ?? '',
         full_description: '',
         part_id: '',
         part_no: '',
@@ -62,7 +63,9 @@ export default function RequisitionsCreate({ aircraft, parts, workOrders, workOr
             <PageHeader
                 eyebrow={<Link href={route('requisitions.index')} className="inline-flex items-center gap-1 hover:text-primary"><ArrowLeft className="size-3" /> Requisitions</Link>}
                 title="Raise requisition"
-                description="Aircraft Spare Parts Requisition Sheet. One voucher per unit."
+                description={originStore
+                    ? `Aircraft Spare Parts Requisition Sheet, to be supplied from ${originStore.name}. One voucher per unit.`
+                    : 'Aircraft Spare Parts Requisition Sheet. One voucher per unit.'}
                 icon={ScrollText}
             />
 

@@ -1,5 +1,6 @@
+import { useMemo, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, PackageMinus, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Lock, PackageMinus, Plus, Search, Trash2 } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/ui/PageHeader';
 import { Card } from '@/Components/ui/Card';
@@ -18,14 +19,16 @@ function Field({ label, error, children }) {
     );
 }
 
-const blankItem = {
+const blankItem = (sourceStoreId = '') => ({
     requisition_id: '', part_id: '', description: '', qty_required: '', qty_issued: '',
-    source_store_id: '', stores_folio: '', rate: '', amount: '', charging_code: '', serial_ids: [],
-};
+    source_store_id: sourceStoreId, stores_folio: '', rate: '', amount: '', charging_code: '', serial_ids: [],
+});
 
-export default function SivCreate({ parts, stores, approvedRequisitions, nextNumber }) {
+export default function SivCreate({ parts, stores, approvedRequisitions, nextNumber, storeId }) {
     const today = new Date().toISOString().slice(0, 10);
+    const [reqSearch, setReqSearch] = useState('');
     const form = useForm({
+        requisition_id: '',
         requisition_for: '',
         ordered_by: '',
         ordered_by_date: today,
@@ -39,7 +42,7 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
         received_by: '',
         received_by_date: '',
         remark: '',
-        items: [{ ...blankItem }],
+        items: [blankItem(storeId ? String(storeId) : '')],
     });
 
     const partById = (id) => parts.find((p) => String(p.id) === String(id));
@@ -48,7 +51,7 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
     const setItem = (i, patch) => {
         form.setData('items', form.data.items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
     };
-    const addRow = () => form.setData('items', [...form.data.items, { ...blankItem }]);
+    const addRow = () => form.setData('items', [...form.data.items, blankItem(storeId ? String(storeId) : '')]);
     const removeRow = (i) => form.setData('items', form.data.items.filter((_, idx) => idx !== i));
 
     const pullRequisition = (i, reqId) => {
@@ -60,6 +63,51 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
             description: r.full_description ?? form.data.items[i].description,
         });
     };
+
+    // The header picker is the primary path: choosing a requisition stamps the
+    // caption, the ordering officer and the request date, and seeds the first line.
+    const headerRequisition = reqById(form.data.requisition_id);
+
+    const matches = useMemo(() => {
+        const q = reqSearch.trim().toLowerCase();
+        const rows = q
+            ? approvedRequisitions.filter((r) => `${r.requisition_no} ${r.full_description} ${r.part_no ?? ''} ${r.aircraft ?? ''}`
+                .toLowerCase().includes(q))
+            : approvedRequisitions;
+
+        return rows.slice(0, 50);
+    }, [reqSearch, approvedRequisitions]);
+
+    const chooseRequisition = (reqId) => {
+        const r = reqById(reqId);
+
+        if (!r) {
+            form.setData('requisition_id', '');
+            return;
+        }
+
+        form.setData({
+            ...form.data,
+            requisition_id: String(r.id),
+            requisition_for: r.label,
+            ordered_by: r.ordered_by ?? '',
+            ordered_by_date: r.ordered_by_date ?? today,
+            items: form.data.items.map((it, idx) => (idx === 0 && !it.requisition_id ? {
+                ...it,
+                requisition_id: r.id,
+                part_id: r.part_id ? String(r.part_id) : it.part_id,
+                description: r.full_description ?? it.description,
+            } : it)),
+        });
+    };
+
+    const clearRequisition = () => form.setData({
+        ...form.data,
+        requisition_id: '',
+        requisition_for: '',
+        ordered_by: '',
+        ordered_by_date: today,
+    });
 
     const setQtyRequired = (i, v) => {
         const it = form.data.items[i];
@@ -95,20 +143,91 @@ export default function SivCreate({ parts, stores, approvedRequisitions, nextNum
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="sm:col-span-2">
-                                <Field label="Requisition for" error={form.errors.requisition_for}>
-                                    <Input value={form.data.requisition_for} onChange={(e) => form.setData('requisition_for', e.target.value)} />
+                            <div className="space-y-2 sm:col-span-2">
+                                <Field label="Requisition for" error={form.errors.requisition_id ?? form.errors.requisition_for}>
+                                    {headerRequisition ? (
+                                        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5">
+                                            <span className="font-mono text-sm font-bold text-ncat-navy">{headerRequisition.requisition_no}</span>
+                                            <span className="min-w-0 flex-1 truncate text-sm text-ncat-navy">
+                                                {headerRequisition.full_description}
+                                                {headerRequisition.aircraft ? ` (${headerRequisition.aircraft})` : ''}
+                                            </span>
+                                            <Button type="button" variant="ghost" size="sm" onClick={clearRequisition}>Change</Button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <div className="relative">
+                                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                                <Input
+                                                    className="pl-9"
+                                                    placeholder="Search approved requisitions by number, part or aircraft…"
+                                                    value={reqSearch}
+                                                    onChange={(e) => setReqSearch(e.target.value)}
+                                                />
+                                            </div>
+                                            {matches.length ? (
+                                                <ul className="max-h-56 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+                                                    {matches.map((r) => (
+                                                        <li key={r.id}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => chooseRequisition(r.id)}
+                                                                className="flex w-full items-baseline gap-3 px-3 py-2 text-left transition-colors hover:bg-accent"
+                                                            >
+                                                                <span className="font-mono text-sm font-semibold text-ncat-navy">{r.requisition_no}</span>
+                                                                <span className="min-w-0 flex-1 truncate text-sm">{r.full_description}</span>
+                                                                <span className="shrink-0 text-xs text-muted-foreground">{r.ordered_by}</span>
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+                                                    {approvedRequisitions.length
+                                                        ? 'No approved requisition matches that search.'
+                                                        : 'No fully approved requisition is waiting to be issued.'}
+                                                </p>
+                                            )}
+                                            <p className="text-xs text-muted-foreground">
+                                                Leave this empty for a standalone voucher and type the ordering officer by hand.
+                                            </p>
+                                        </div>
+                                    )}
                                 </Field>
                             </div>
                             <Field label="School / Section" error={form.errors.school_section}>
                                 <Input value={form.data.school_section} onChange={(e) => form.setData('school_section', e.target.value)} />
                             </Field>
                             <div />
-                            <Field label="Ordered by" error={form.errors.ordered_by}>
-                                <Input value={form.data.ordered_by} onChange={(e) => form.setData('ordered_by', e.target.value)} />
+                            <Field
+                                label={headerRequisition ? 'Ordered by (from the requisition)' : 'Ordered by'}
+                                error={form.errors.ordered_by}
+                            >
+                                <div className="relative">
+                                    <Input
+                                        value={form.data.ordered_by}
+                                        readOnly={!!headerRequisition}
+                                        aria-readonly={!!headerRequisition}
+                                        className={headerRequisition ? 'cursor-not-allowed bg-muted pr-9 text-muted-foreground' : undefined}
+                                        onChange={(e) => !headerRequisition && form.setData('ordered_by', e.target.value)}
+                                    />
+                                    {headerRequisition && (
+                                        <Lock className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                                    )}
+                                </div>
                             </Field>
-                            <Field label="Ordered by date" error={form.errors.ordered_by_date}>
-                                <Input type="date" value={form.data.ordered_by_date} onChange={(e) => form.setData('ordered_by_date', e.target.value)} />
+                            <Field
+                                label={headerRequisition ? 'Request date (from the requisition)' : 'Ordered by date'}
+                                error={form.errors.ordered_by_date}
+                            >
+                                <Input
+                                    type="date"
+                                    value={form.data.ordered_by_date}
+                                    readOnly={!!headerRequisition}
+                                    aria-readonly={!!headerRequisition}
+                                    className={headerRequisition ? 'cursor-not-allowed bg-muted text-muted-foreground' : undefined}
+                                    onChange={(e) => !headerRequisition && form.setData('ordered_by_date', e.target.value)}
+                                />
                             </Field>
                             <Field label="Approved by" error={form.errors.approved_by}>
                                 <Input value={form.data.approved_by} onChange={(e) => form.setData('approved_by', e.target.value)} />

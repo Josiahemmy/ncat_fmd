@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\ForcePasswordChangeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SearchController;
@@ -22,6 +23,11 @@ Route::middleware('auth')->group(function () {
 
     // Global typeahead (grouped, permission-filtered) — JSON for the topbar.
     Route::get('/search', SearchController::class)->middleware('throttle:search')->name('search');
+
+    // Event notifications (database channel). Every signed-in user has their own
+    // queue, so these need no extra permission.
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read', [NotificationController::class, 'read'])->name('notifications.read');
 
     // First-login forced password change (exempt from EnsurePasswordChanged).
     Route::get('/password/change', [ForcePasswordChangeController::class, 'edit'])->name('password.change');

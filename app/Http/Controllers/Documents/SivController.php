@@ -12,6 +12,7 @@ use App\Services\Documents\SivService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Number;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,7 +49,7 @@ class SivController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Siv/Create', [
             'parts' => Part::orderBy('part_number')->get(['id', 'part_number', 'description', 'is_serialized']),
@@ -56,6 +57,8 @@ class SivController extends Controller
                 ->get(['id', 'name', 'slug', 'type']),
             'approvedRequisitions' => $this->approvedRequisitions(),
             'nextNumber' => app(DocumentNumberService::class)->peek('siv'),
+            // Pre-scoping from a store page: lines default to this store.
+            'storeId' => $request->integer('store') ?: null,
         ]);
     }
 
@@ -63,7 +66,7 @@ class SivController extends Controller
     {
         $data = $this->validated($request);
 
-        $siv = Siv::create(collect($data)->except('items')->all() + [
+        $siv = Siv::create($this->header($data) + [
             'siv_number' => app(DocumentNumberService::class)->reserve('siv'),
             'created_by_user_id' => $request->user()->id,
         ]);
@@ -81,6 +84,7 @@ class SivController extends Controller
             'siv' => [
                 'id' => $siv->id,
                 'siv_number' => $siv->siv_number,
+                'requisition_id' => $siv->requisition_id,
                 'requisition_for' => $siv->requisition_for,
                 'ordered_by' => $siv->ordered_by,
                 'ordered_by_date' => $siv->ordered_by_date?->toDateString(),
@@ -119,7 +123,7 @@ class SivController extends Controller
         abort_if($siv->isPosted(), 422, 'A posted SIV is read-only.');
         $data = $this->validated($request);
 
-        $siv->update(collect($data)->except('items')->all());
+        $siv->update($this->header($data));
         $siv->items()->delete();
         $this->syncItems($siv, $data['items']);
 
@@ -138,6 +142,41 @@ class SivController extends Controller
         $service->post($siv, $request->user());
 
         return redirect()->route('issuing.show', $siv)->with('success', "SIV {$siv->siv_number} posted. Stock issued.");
+    }
+
+    /**
+     * Voucher header values. When the voucher is linked to a requisition, the
+     * "Requisition for", "Ordered by" and request date are read from that
+     * requisition and whatever the client sent for those fields is discarded.
+     * They are rendered read-only, but the server does not rely on that.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function header(array $data): array
+    {
+        $header = collect($data)->except('items')->all();
+        $requisition = ! empty($data['requisition_id'])
+            ? Requisition::with('requestedBy:id,name')->find($data['requisition_id'])
+            : null;
+
+        if (! $requisition) {
+            $header['requisition_id'] = null;
+
+            return $header;
+        }
+
+        return array_replace($header, [
+            'requisition_for' => $this->requisitionLabel($requisition),
+            'ordered_by' => $requisition->requestedBy?->name,
+            'ordered_by_date' => $requisition->submitted_at?->toDateString()
+                ?? $requisition->requisition_date?->toDateString(),
+        ]);
+    }
+
+    protected function requisitionLabel(Requisition $r): string
+    {
+        return trim("{$r->requisition_no} - {$r->full_description}");
     }
 
     protected function syncItems(Siv $siv, array $items): void
@@ -164,6 +203,8 @@ class SivController extends Controller
     protected function validated(Request $request): array
     {
         return $request->validate([
+            // Only a fully approved, not-yet-issued requisition may be linked.
+            'requisition_id' => ['nullable', Rule::exists('requisitions', 'id')->where('status', 'approved')],
             'requisition_for' => ['nullable', 'string', 'max:255'],
             'ordered_by' => ['nullable', 'string', 'max:255'],
             'ordered_by_date' => ['nullable', 'date'],
@@ -194,13 +235,21 @@ class SivController extends Controller
         ]);
     }
 
-    /** Approved requisitions not yet issued — the SIV line picker. */
+    /**
+     * The "Requisition for" picker: fully approved requisitions that have not
+     * been issued yet. Issuing moves a requisition to `issued`, so the status
+     * filter covers both halves of that rule.
+     *
+     * Each row carries the requester's name and submitted date, which the form
+     * shows read-only and the server re-derives on save.
+     */
     protected function approvedRequisitions()
     {
         return Requisition::where('status', 'approved')
-            ->with('aircraft:id,registration')
+            ->with(['aircraft:id,registration', 'requestedBy:id,name'])
             ->orderByDesc('id')
-            ->get(['id', 'requisition_no', 'full_description', 'part_id', 'part_no', 'aircraft_id'])
+            ->get(['id', 'requisition_no', 'full_description', 'part_id', 'part_no', 'aircraft_id',
+                'requested_by_user_id', 'submitted_at', 'requisition_date'])
             ->map(fn (Requisition $r) => [
                 'id' => $r->id,
                 'requisition_no' => $r->requisition_no,
@@ -208,6 +257,9 @@ class SivController extends Controller
                 'part_id' => $r->part_id,
                 'part_no' => $r->part_no,
                 'aircraft' => $r->aircraft?->registration,
+                'ordered_by' => $r->requestedBy?->name,
+                'ordered_by_date' => $r->submitted_at?->toDateString() ?? $r->requisition_date?->toDateString(),
+                'label' => $this->requisitionLabel($r),
             ]);
     }
 }

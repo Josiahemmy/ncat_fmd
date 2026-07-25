@@ -47,7 +47,10 @@ Route::middleware('auth')->group(function () {
         Route::post('requisitions/{requisition}/submit', [RequisitionController::class, 'submit'])->name('requisitions.submit');
         Route::post('requisitions/{requisition}/removal', [RequisitionController::class, 'completeRemoval'])->name('requisitions.removal');
     });
-    Route::middleware('can:requisitions.approve')->group(function () {
+    // Gated by the approval engine rather than a fixed permission: the user must
+    // satisfy whatever role or permission the requisition's pending level is
+    // bound to. With the seeded default level that is `requisitions.approve`.
+    Route::middleware('can:decide,requisition')->group(function () {
         Route::post('requisitions/{requisition}/approve', [RequisitionController::class, 'approve'])->name('requisitions.approve');
         Route::post('requisitions/{requisition}/reject', [RequisitionController::class, 'reject'])->name('requisitions.reject');
     });

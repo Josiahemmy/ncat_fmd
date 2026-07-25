@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
-    ArrowLeft, ArrowRightLeft, BadgeCheck, Scale, Search, Warehouse,
+    ArrowLeft, ArrowRightLeft, BadgeCheck, BookOpenCheck, PackageMinus, Scale,
+    ScrollText, Search, Warehouse,
 } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/ui/PageHeader';
@@ -43,6 +44,24 @@ export default function StoreShow({ store, rows, filters, transferTargets }) {
                 title={store.name}
                 description={store.description}
                 icon={Warehouse}
+                actions={store.allows_documents && (
+                    <>
+                        {can('requisitions.create') && (
+                            <Button asChild variant="outline">
+                                <Link href={route('requisitions.create', { store: store.id })}>
+                                    <ScrollText className="size-4" /> Raise requisition
+                                </Link>
+                            </Button>
+                        )}
+                        {store.allows_issue && can('issues.post') && (
+                            <Button asChild>
+                                <Link href={route('issuing.create', { store: store.id })}>
+                                    <PackageMinus className="size-4" /> Raise issue
+                                </Link>
+                            </Button>
+                        )}
+                    </>
+                )}
             />
 
             <form onSubmit={submitSearch} className="mb-4 max-w-sm">
@@ -83,6 +102,14 @@ export default function StoreShow({ store, rows, filters, transferTargets }) {
                                 )}
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-1">
+                                        {/* Tally is allowed everywhere, Quarantine included. */}
+                                        {can('tally.view') && (
+                                            <Button asChild variant="ghost" size="sm">
+                                                <Link href={route('tally-cards.show', { part: r.part_id, store: store.id })}>
+                                                    <BookOpenCheck className="size-4" /> Tally
+                                                </Link>
+                                            </Button>
+                                        )}
                                         {isQuarantine && can('quarantine.certify') && (
                                             <Button variant="ghost" size="sm" onClick={() => setAction({ type: 'certify', row: r })}>
                                                 <BadgeCheck className="size-4" /> Certify

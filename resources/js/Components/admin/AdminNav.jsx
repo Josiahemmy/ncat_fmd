@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
     Activity,
+    GitBranch,
     Hash,
     LayoutGrid,
     ListOrdered,
@@ -20,6 +21,7 @@ const SECTIONS = [
     { label: 'Stores', icon: Warehouse, route: 'admin.stores.index', permission: 'stores.view' },
     { label: 'ATA Chapters', icon: Hash, route: 'admin.ata.index', permission: 'ata.view' },
     { label: 'Counters', icon: ListOrdered, route: 'admin.counters.index', permission: 'counters.view' },
+    { label: 'Approval Workflow', icon: GitBranch, route: 'admin.approvals.index', permission: 'approvals.manage' },
     { label: 'Activity Log', icon: Activity, route: 'admin.activity.index', permission: 'audit.view' },
 ];
 

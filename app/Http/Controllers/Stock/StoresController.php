@@ -7,6 +7,7 @@ use App\Models\Part;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
 use App\Models\Store;
+use App\Services\Documents\SivService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -70,6 +71,11 @@ class StoresController extends Controller
             'store' => [
                 'id' => $store->id, 'name' => $store->name, 'slug' => $store->slug,
                 'type' => $store->type, 'description' => $store->description,
+                // Quarantine stays view-only: certification is the only action
+                // there, so no requisition or issue may be raised from it.
+                'allows_documents' => $store->type !== 'quarantine',
+                // Issuing draws on bonded/dope stock only.
+                'allows_issue' => in_array($store->type, SivService::ISSUABLE_STORE_TYPES, true),
             ],
             'rows' => $rows,
             'filters' => ['search' => $search],

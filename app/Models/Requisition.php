@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -18,7 +19,7 @@ class Requisition extends Model
         'aircraft_id', 'aircraft_reg', 'engine_serial_no', 'position', 'authorised_by', 'supply_source',
         'full_description', 'part_id', 'part_no', 'stock_code', 'serial_number', 'batch_no', 'batch_year', 'bin_bal_line_no',
         'issued_by', 'unit_serviced_by', 'unit_serviced_date',
-        'status', 'requested_by_user_id', 'approved_by_user_id', 'approved_at', 'rejected_at', 'approval_remarks', 'issued_at',
+        'status', 'requested_by_user_id', 'submitted_at', 'approved_by_user_id', 'approved_at', 'rejected_at', 'approval_remarks', 'issued_at',
         'serial_no_removed', 'removal_zone', 'unit_changed_by', 'reason_for_removal', 'removal_signature',
         'removal_date', 'repair_facility', 'date_sent', 'repair_order_ref', 'removed_serial_id', 'removal_completed_at',
         'requisition_date',
@@ -31,6 +32,7 @@ class Requisition extends Model
             'removal_date' => 'date',
             'date_sent' => 'date',
             'requisition_date' => 'date',
+            'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
             'issued_at' => 'datetime',
@@ -66,6 +68,13 @@ class Requisition extends Model
     public function removedSerial(): BelongsTo
     {
         return $this->belongsTo(PartSerial::class, 'removed_serial_id');
+    }
+
+    /** The materialised approval chain, oldest cycle and lowest level first. */
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(RequisitionApproval::class)
+            ->orderBy('cycle')->orderBy('sequence');
     }
 
     public function isApproved(): bool
