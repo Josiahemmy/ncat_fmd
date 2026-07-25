@@ -1,6 +1,7 @@
 # NCAT Flight Maintenance Department — Inventory System Design Spec
 
-**Version:** 1.1 (2026-07-18) — revised after paper-forms review, HOD input (multi-store + CAMP reference), and Phase 0 delivery. v1.0 sections amended: §3, §4, §5, §6, §7, §9, §10, §11.
+**Version:** 1.2 (2026-07-25) — scope extension after the management demo. New §12 covers the approval workflow engine, Vendors, Orders (PO/RO), Shipping, Loaners, and store-page actions. §10 exclusions for vendors/POs/loaners/shipping are lifted.
+**Prior:** 1.1 (2026-07-18) — revised after paper-forms review, HOD input (multi-store + CAMP reference), and Phase 0 delivery. v1.0 sections amended: §3, §4, §5, §6, §7, §9, §10, §11.
 **Project:** Inventory & Stores Management Dashboard for the Flight Maintenance Department (FMD), Nigerian College of Aviation Technology, Zaria
 **Live target:** https://office.ncatfmd.com.ng
 **Repo:** https://github.com/Josiahemmy/ncat_fmd
@@ -129,4 +130,41 @@ Unchanged from v1.0 (no self-registration, policies, audit, `.env`-only credenti
 3. **Set MySQL password + change seeded Super Admin password** (Project Lead — outstanding from Phase 0)
 4. Department later defines real roles via admin UI
 5. Starting values for document counters (WO serial ~1338, Req ~1001, SIV ~0293, SRV ~0201 per the samples) — confirm exact next numbers with the department before Phase 3 go-live
-6. Confirm with HOD which CAMP features beyond the adopted set (alerts, parts-on-aircraft, stock deficit) they expect — current exclusions in §10 shown to them for veto
+6. ~~Confirm with HOD which CAMP features beyond the adopted set they expect~~ Resolved by the management demo: vendors, orders, shipping, and loaners are now in scope (§12).
+
+## 12. v1.2 Scope Extension (post-management-demo, 2026-07-25)
+
+Delivery order: Phase 6 (approval engine + refinements) → Phase 7 (Vendors + Orders) → Phase 8 (Shipping + Loaners). Forms ground truth extended: `forms_reference/Purchase Order.png`, `forms_reference/Repair Order.png`.
+
+### 12.1 Configurable approval workflow (Phase 6)
+- `approval_workflows` per document type (requisitions first): ordered levels, each level bound to a permission or role. Admin UI to add/remove/reorder levels. Seeded default: one level bound to `requisitions.approve`, matching current behavior exactly.
+- A requisition is issuable only after the final level approves. Each decision records who/when/remarks. Rejection at any level ends the flow with the reason.
+- Notifications (database channel + bell): pending approvers notified when a requisition reaches their level; the requester is notified on every decision. The SIV picker only lists fully approved requisitions (unchanged rule, new engine underneath).
+- Approve/Reject actions sit on the requisition detail page directly above the removal block, visible only to users who can act on the current level; approver ≠ requester still holds per level.
+
+### 12.2 SIV form refinements (Phase 6)
+- "Requisition for" is a live picker of fully approved, not-yet-issued requisitions.
+- Selecting one auto-fills "Ordered by" with the requester's full name and the request date, shown greyed and read-only. Server ignores client tampering of these fields (they derive from the requisition, never from input).
+
+### 12.3 Store-page actions (Phase 6)
+- On each store page: per-part "view tally" plus "raise requisition" and "raise issue" actions pre-scoped to that store. Hidden/disabled on Quarantine (view remains).
+
+### 12.4 Vendors (Phase 7)
+- `vendors`: name, type (supplier / repair organization / both), address block (multi-line, as printed on PO/RO), country, email, phone, contact person, notes, is_active. Add-new form above a filterable list (filter: type, country, active). Permission group `vendors.*`. Vendor detail shows linked POs/ROs/shipments/loans.
+
+### 12.5 Orders module (Phase 7): Purchase Orders + Repair Orders
+Two submodules under one "Orders" sidebar entry. Both mirror their paper forms:
+- **Purchase Order** — ref series `NCAT/FMD/PO/TS/{D}/{M}/{serial}` (new counter; serial continues from the department's current number, provisional until confirmed, sample shows 307). Vendor (from Vendors), aircraft type header, lines: description, part number (part picker with free-text fallback), qty to order, status per line (NEW/…), timeline (month/year). Priority checkboxes: A.O.G / Very Urgent / For Inventory. NCAT contacts block (defaults seeded from the sample, editable in settings). Prepared by: Head, Materials and Stores. Statuses: draft → issued → partially received → received → closed/cancelled. Paper-exact PDF.
+- **Repair Order** — ref series `NCAT/FMD/RO/TS/{MM}/{serial}` (sample 298). Vendor must be a repair organization. Lines: description, part number, **serial no** (picker over at_repair/removed_unserviceable serials, free-text fallback), qty, action (OVERHAUL/REPAIR/TEST/…). Ties into the Phase 3 removal flow: creating an RO line from a removed serial updates that serial's state and back-links the requisition's repair-order field. Statuses: draft → issued → at vendor → returned → closed/cancelled. Paper-exact PDF.
+- SRV gains an optional PO reference (next to the free-text LPO field); receiving against a PO updates its received quantities and status.
+
+### 12.6 Shipping (Phase 8)
+- Tracks inbound shipments. A shipment references a PO or RO (or standalone), vendor, description, expected date. Manual status timeline: an ordered, append-only event log (e.g. Shipped → Arrived at local port → Picked up by courier → Arrived at NCAT), each event with date + note, rendered as a premium vertical timeline. Admin-manageable set of suggested statuses; free-text allowed. Arrival at NCAT prompts "create SRV from this shipment" (pre-filled, lands in Quarantine as usual). Alert for shipments past expected date.
+
+### 12.7 Loaners (Phase 8) — both directions
+- **Outbound**: an external party (vendors list or standalone borrower record) borrows stock from NCAT. Issue posts loan-out movements (new movement_type `loan_out`, from Bonded/Dope only); duration recorded; overdue alert when past due and unreturned; return posts `loan_return` movements (with condition note) or is written off via adjustment.
+- **Inbound**: NCAT borrows an item from another organization: tracked record (lender, item, serials, due date, overdue alert, returned flag). Inbound loaned stock is flagged and excluded from NCAT-owned stock value; issuing it is allowed but visibly marked as loaned property.
+- Dashboard/bell alerts: overdue outbound and inbound loans.
+
+### 12.8 Permissions (new groups)
+`vendors.view/manage`, `orders.view/create/edit/close` (covers PO+RO; split later if the dept asks), `shipping.view/manage`, `loans.view/manage`, `approvals.manage` (admin: configure workflow levels). Starter-role defaults: Stores Officer gets orders/shipping/loans manage; Storekeeper gets view + shipping status updates; assignments editable in admin as always.
