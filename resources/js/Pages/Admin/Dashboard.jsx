@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import {
-    Activity, Hash, ListOrdered, Plane, ShieldCheck, Users, Warehouse,
+    Activity, GitBranch, Hash, ListOrdered, Plane, ShieldCheck, Users, Warehouse,
 } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { AdminNav } from '@/Components/admin/AdminNav';
@@ -18,6 +18,7 @@ export default function AdminDashboard({ counts }) {
         { label: 'Stores', value: counts.stores, icon: Warehouse, route: 'admin.stores.index', permission: 'stores.view' },
         { label: 'ATA Chapters', value: counts.ataChapters, icon: Hash, route: 'admin.ata.index', permission: 'ata.view' },
         { label: 'Document Counters', value: counts.counters, icon: ListOrdered, route: 'admin.counters.index', permission: 'counters.view' },
+        { label: 'Approval Workflow', value: counts.approvalLevels, hint: 'requisition levels', icon: GitBranch, route: 'admin.approvals.index', permission: 'approvals.manage' },
         { label: 'Activity Log', value: '—', hint: 'audit trail', icon: Activity, route: 'admin.activity.index', permission: 'audit.view' },
     ].filter((c) => can(c.permission ?? ''));
 

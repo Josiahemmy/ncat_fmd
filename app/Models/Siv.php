@@ -15,7 +15,7 @@ class Siv extends Model
     use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
-        'siv_number', 'requisition_for', 'ordered_by', 'ordered_by_date', 'school_section',
+        'siv_number', 'requisition_id', 'requisition_for', 'ordered_by', 'ordered_by_date', 'school_section',
         'approved_by', 'approved_by_date', 'entered_by', 'entered_by_date',
         'issued_by', 'issued_by_date', 'received_by', 'received_by_date', 'remark',
         'status', 'posted_at', 'posted_by_user_id', 'created_by_user_id',
@@ -41,6 +41,12 @@ class Siv extends Model
     public function postedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'posted_by_user_id');
+    }
+
+    /** The requisition this voucher issues against, when it is not standalone. */
+    public function requisition(): BelongsTo
+    {
+        return $this->belongsTo(Requisition::class);
     }
 
     public function isPosted(): bool

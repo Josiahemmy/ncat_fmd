@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check, FileDown, Printer, ScrollText, Wrench, X } from 'lucide-react';
+import { ArrowLeft, Ban, Check, FileDown, Hourglass, Printer, ScrollText, Wrench, X } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/ui/PageHeader';
 import { Button } from '@/Components/ui/Button';
@@ -25,7 +25,7 @@ function Box({ n, label, value, className = '', children }) {
     );
 }
 
-export default function RequisitionShow({ requisition, flow }) {
+export default function RequisitionShow({ requisition, approval, flow }) {
     const { can } = usePermissions();
     const r = requisition;
     const [approving, setApproving] = useState(false);
@@ -51,13 +51,12 @@ export default function RequisitionShow({ requisition, flow }) {
                             <Wrench className="size-3.5" /> {r.wo_ref}
                         </Link>
                     )}
+                    {approval.pending && (
+                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Hourglass className="size-3.5" /> Awaiting <span className="font-semibold text-ncat-navy">{approval.pending.level_name}</span>
+                        </span>
+                    )}
                     <div className="ml-auto flex flex-wrap items-center gap-2">
-                        {flow.canApprove && can('requisitions.approve') && (
-                            <>
-                                <Button onClick={() => setApproving(true)}><Check className="size-4" /> Approve</Button>
-                                <Button variant="destructive" onClick={() => setRejecting(true)}><X className="size-4" /> Reject</Button>
-                            </>
-                        )}
                         {flow.canRemoval && can('requisitions.create') && (
                             <Button variant="navy" onClick={() => setRemoving(true)}><Wrench className="size-4" /> Record removal</Button>
                         )}
@@ -68,7 +67,17 @@ export default function RequisitionShow({ requisition, flow }) {
                     </div>
                 </div>
 
-                {r.approval_remarks && (
+                {r.status === 'rejected' && r.approval_remarks && (
+                    <div className="mb-4 flex gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4">
+                        <Ban className="mt-0.5 size-5 shrink-0 text-destructive" />
+                        <div className="text-sm text-ncat-navy">
+                            <p className="font-semibold text-destructive">This requisition was rejected</p>
+                            <p className="mt-1">{r.approval_remarks}</p>
+                        </div>
+                    </div>
+                )}
+
+                {r.status !== 'rejected' && r.approval_remarks && (
                     <div className="mb-4 rounded-lg border border-border bg-muted/40 p-3 text-sm text-ncat-navy">
                         <span className="font-semibold">Approval remarks: </span>{r.approval_remarks}
                     </div>
@@ -130,6 +139,15 @@ export default function RequisitionShow({ requisition, flow }) {
                         </Box>
                     </div>
 
+                    {/* Approval chain. Management asked for the decision controls to
+                        sit directly above the removal block, where the approver
+                        already looks when working through the sheet. */}
+                    <ApprovalBlock
+                        approval={approval}
+                        onApprove={() => setApproving(true)}
+                        onReject={() => setRejecting(true)}
+                    />
+
                     {/* Removal information */}
                     <div className="border-b border-ncat-navy px-2 py-1 text-sm font-bold uppercase print:border-black">
                         Removal Information <span className="text-[0.65rem] font-semibold">(must be completed by aircraft technician)</span>
@@ -179,6 +197,90 @@ export default function RequisitionShow({ requisition, flow }) {
                 @page { margin: 12mm; }
             }`}</style>
         </AppLayout>
+    );
+}
+
+/**
+ * The decision trail as a compact stepper, with the approve/reject controls for
+ * whoever can act on the pending level. Prints as a plain signature record: the
+ * buttons and the guidance line are screen-only.
+ */
+function ApprovalBlock({ approval, onApprove, onReject }) {
+    const { trail = [], pending, canDecide } = approval ?? {};
+
+    if (!trail.length) {
+        return null;
+    }
+
+    return (
+        <div className="border-b-2 border-ncat-navy print:border-black">
+            <div className="flex flex-wrap items-baseline gap-x-2 border-b border-ncat-navy px-2 py-1 print:border-black">
+                <span className="text-sm font-bold uppercase">Approval</span>
+                {pending
+                    ? <span className="text-[0.65rem] font-semibold">(awaiting {pending.level_name})</span>
+                    : <span className="text-[0.65rem] font-semibold">(complete)</span>}
+            </div>
+
+            <ol className="divide-y divide-ncat-navy print:divide-black">
+                {trail.map((step, i) => (
+                    <li key={step.id} className="flex items-start gap-3 p-2">
+                        <span
+                            className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-[0.7rem] font-bold ${
+                                step.decision === 'approve' ? 'border-success bg-success/10 text-success'
+                                    : step.decision === 'reject' ? 'border-destructive bg-destructive/10 text-destructive'
+                                        : step.is_pending ? 'border-ncat-navy bg-ncat-navy text-white'
+                                            : 'border-border text-muted-foreground'
+                            }`}
+                        >
+                            {step.decision === 'approve' ? <Check className="size-3.5" />
+                                : step.decision === 'reject' ? <X className="size-3.5" />
+                                    : i + 1}
+                        </span>
+
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-baseline gap-x-2">
+                                <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-ncat-navy">
+                                    {step.level_name}
+                                </span>
+                                {trail.some((s) => s.cycle > 1) && (
+                                    <span className="text-[0.65rem] text-muted-foreground print:text-black">pass {step.cycle}</span>
+                                )}
+                                {step.is_pending && (
+                                    <span className="text-[0.65rem] font-semibold uppercase text-primary print:text-black">pending</span>
+                                )}
+                            </div>
+                            <p className="text-sm font-medium text-ncat-navy">
+                                {step.decided_by
+                                    ? `${step.decision === 'reject' ? 'Rejected' : 'Approved'} by ${step.decided_by}`
+                                    : step.is_pending ? step.binding : 'Not reached'}
+                            </p>
+                            {step.decided_at && <p className="text-xs text-muted-foreground print:text-black">{step.decided_at}</p>}
+                            {step.remarks && <p className="mt-0.5 text-xs italic text-ncat-navy">“{step.remarks}”</p>}
+                        </div>
+                    </li>
+                ))}
+            </ol>
+
+            {pending && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-ncat-navy bg-muted/30 p-2 print:hidden">
+                    {canDecide ? (
+                        <>
+                            <Button size="sm" onClick={onApprove}><Check className="size-4" /> Approve</Button>
+                            <Button size="sm" variant="destructive" onClick={onReject}><X className="size-4" /> Reject</Button>
+                            <span className="text-xs text-muted-foreground">
+                                You are acting as {pending.level_name}.
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">
+                            {pending.level_name} is pending. Only users holding the{' '}
+                            <span className="font-semibold text-ncat-navy">{pending.binding_value}</span>{' '}
+                            {pending.binding_type} can decide, and never the person who raised the requisition.
+                        </span>
+                    )}
+                </div>
+            )}
+        </div>
     );
 }
 

@@ -9,6 +9,7 @@ use App\Models\Part;
 use App\Models\PartBatch;
 use App\Models\PartSerial;
 use App\Models\Requisition;
+use App\Services\Documents\ApprovalService;
 use App\Models\Siv;
 use App\Models\SivItem;
 use App\Models\Srv;
@@ -428,7 +429,7 @@ class DemoSeeder
     {
         $part = $this->p($partNum);
 
-        return Requisition::create(array_merge([
+        $requisition = Requisition::create(array_merge([
             'requisition_no' => $this->counters->reserve('requisition'),
             'requisition_date' => Carbon::now()->toDateString(),
             'aircraft_id' => $ac?->id,
@@ -439,8 +440,17 @@ class DemoSeeder
             'stock_code' => $part->stock_code,
             'status' => $status,
             'requested_by_user_id' => $this->storeman->id,
+            'submitted_at' => $status === 'draft' ? null : Carbon::now(),
             'authorised_by' => 'Chief Engineer',
         ], $extra));
+
+        // Demo rows set their status directly, so give anything past draft the
+        // approval chain a real submission would have written.
+        if ($requisition->status !== 'draft') {
+            app(ApprovalService::class)->backfillChain($requisition);
+        }
+
+        return $requisition;
     }
 
     // ---- Issuing (SIV) --------------------------------------------------

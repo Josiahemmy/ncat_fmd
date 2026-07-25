@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AircraftController;
 use App\Http\Controllers\Admin\AircraftTypeController;
+use App\Http\Controllers\Admin\ApprovalWorkflowController;
 use App\Http\Controllers\Admin\AtaChapterController;
 use App\Http\Controllers\Admin\DocumentCounterController;
 use App\Http\Controllers\Admin\RoleController;
@@ -78,6 +79,12 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     });
     Route::middleware('can:counters.manage')->group(function () {
         Route::put('counters/{counter}', [DocumentCounterController::class, 'update'])->name('counters.update');
+    });
+
+    // Approval workflow (ordered levels bound to a permission or a role)
+    Route::middleware('can:approvals.manage')->group(function () {
+        Route::get('approval-workflow', [ApprovalWorkflowController::class, 'index'])->name('approvals.index');
+        Route::put('approval-workflow/{workflow}', [ApprovalWorkflowController::class, 'update'])->name('approvals.update');
     });
 
     // Activity log

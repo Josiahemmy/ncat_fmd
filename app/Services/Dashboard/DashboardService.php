@@ -6,6 +6,7 @@ use App\Models\Part;
 use App\Models\Requisition;
 use App\Models\StockBalance;
 use App\Models\WorkOrder;
+use App\Services\Documents\ApprovalService;
 use App\Services\Stock\StockAlertService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -185,7 +186,11 @@ class DashboardService
         ];
 
         return collect($cards)
-            ->filter(fn ($c) => $user && $user->can($c['permission']))
+            ->filter(fn ($c) => $user && ($c['key'] === 'requisitions_pending'
+                // Approval rights come from the configured levels, which may be
+                // bound to a role rather than the original fixed permission.
+                ? app(ApprovalService::class)->canApproveAnyLevel($user)
+                : $user->can($c['permission'])))
             ->map(fn ($c) => [
                 'key' => $c['key'],
                 'label' => $c['label'],

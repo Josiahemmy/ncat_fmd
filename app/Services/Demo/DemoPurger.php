@@ -34,6 +34,7 @@ class DemoPurger
         'sivs',
         'srv_items',
         'srvs',
+        'requisition_approvals',
         'requisitions',
         'work_orders',
         'part_serials',
@@ -42,7 +43,7 @@ class DemoPurger
     ];
 
     /** Reference tables that must survive a purge (for the verification report). */
-    public const PRESERVED = ['users', 'roles', 'permissions', 'aircraft', 'aircraft_types', 'ata_chapters', 'stores', 'document_counters'];
+    public const PRESERVED = ['users', 'roles', 'permissions', 'aircraft', 'aircraft_types', 'ata_chapters', 'stores', 'document_counters', 'approval_workflows', 'approval_levels'];
 
     public function __construct(protected DemoBackup $backup, protected DemoMode $demo)
     {
