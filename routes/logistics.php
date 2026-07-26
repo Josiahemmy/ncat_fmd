@@ -34,6 +34,10 @@ Route::middleware('auth')->group(function () {
         Route::put('shipments/{shipment}', [ShipmentController::class, 'update'])->name('shipments.update');
         Route::post('shipments/{shipment}/events', [ShipmentController::class, 'addEvent'])->name('shipments.events.store');
         Route::post('shipments/{shipment}/close', [ShipmentController::class, 'close'])->name('shipments.close');
+        // Closing freezes the timeline, so this is the only way back in. It is
+        // not an undo: it clears `closed_at` and nothing else, leaving every
+        // recorded entry where it is.
+        Route::post('shipments/{shipment}/reopen', [ShipmentController::class, 'reopen'])->name('shipments.reopen');
     });
     Route::middleware('can:receiving.post')->group(function () {
         Route::get('shipments/{shipment}/srv', [ShipmentController::class, 'createSrv'])->name('shipments.srv');

@@ -37,7 +37,14 @@ export default {
             colors: {
                 // ---- Raw NCAT brand palette (exact hex) ----
                 ncat: {
-                    blue: '#009DE0',      // Aviation Blue — primary
+                    // Aviation Blue, darkened from #009DE0 (198 100% 44%) to
+                    // 198 100% 39%. This is the 3:1 colour: icons, borders,
+                    // focus rings, chart series, large display type. At 44% it
+                    // cleared 3:1 on a white card (3.04:1) and missed on every
+                    // other surface we render it on, down to 2.75:1 on the
+                    // accent hover fill. At 39% the worst surface is 3.43:1.
+                    // Hue and saturation are unchanged.
+                    blue: '#008BC7',      // Aviation Blue, the 3:1 brand field
                     navy: '#101A62',      // Deep Navy — sidebar / headings
                     sky: '#13B8F0',       // Sky Blue — highlights / gradients
                     cyan: '#00C2FF',      // Aviation Cyan — interactive accents

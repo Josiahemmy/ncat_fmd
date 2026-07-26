@@ -39,8 +39,9 @@
            case is `text-primary` on a `bg-primary/10` chip, which lands at
            4.63:1 at 31% and 4.89:1 at 30%; the extra step keeps a future tint
            change from silently dropping it back under.
-           #009DE0 itself is unchanged and still carries the 3:1 roles (see
-           --ring below and `ncat.blue` in tailwind.config.js). */
+           The 3:1 roles are carried by `ncat.blue`, which is now #008BC7 for
+           the same reason at its own bar (see --ring below and
+           tailwind.config.js). */
         --primary: 198 100% 30%;          /* Aviation Blue, dark step #006B99 */
         --primary-foreground: 0 0% 100%;
 
@@ -74,7 +75,10 @@
 
         --border: 218 23% 88%;            /* Silver #D9DEE7         */
         --input: 218 23% 88%;
-        --ring: 198 100% 44%;             /* Aviation Blue focus    */
+        /* Matches `ncat.blue`. A focus ring answers to the 3:1 bar, and at 44%
+           it only cleared that against a white card, not against the page,
+           muted or accent surfaces it also lands on. */
+        --ring: 198 100% 39%;             /* Aviation Blue focus #008BC7 */
 
         /* Dark-navy sidebar surface */
         --sidebar: 233 68% 15%;

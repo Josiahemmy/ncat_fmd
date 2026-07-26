@@ -38,6 +38,22 @@ const longDate = (iso) =>
         day: 'numeric', month: 'short', year: 'numeric',
     }) : null;
 
+/*
+ * Rail geometry, in one place because it is shared by three absolutely
+ * positioned things that have to line up.
+ *
+ * The rail is a 2.25rem gutter created by the Rail's left padding. Entries are
+ * block children of that padded box, so an entry's own left edge sits at
+ * 2.25rem: positioning a badge at `left-0` inside an entry puts it on top of
+ * the text, which is what it used to do. Everything on the rail is therefore
+ * offset back out of the padding by a negative left.
+ *
+ *   gutter 2.25rem (36px) | badge 1.375rem (22px), so its centre is 0.6875rem
+ *   from the gutter's left edge, i.e. -1.5625rem from an entry's left edge.
+ */
+const RAIL_BADGE_LEFT = '-left-9';              // -2.25rem: badge flush to the gutter
+const RAIL_LINE_LEFT = 'left-[-1.5625rem]';     // badge centre, so the line runs through it
+
 function Rail({ children }) {
     return <div className="relative pl-9">{children}</div>;
 }
@@ -55,12 +71,12 @@ function Node({ tone, icon: Icon, last }) {
         <>
             <span
                 aria-hidden="true"
-                className={`absolute left-0 top-1 flex size-[1.375rem] items-center justify-center rounded-full border-2 ${ring}`}
+                className={`absolute ${RAIL_BADGE_LEFT} top-1 flex size-[1.375rem] items-center justify-center rounded-full border-2 ${ring}`}
             >
                 {Icon && <Icon className="size-3" />}
             </span>
             {!last && (
-                <span aria-hidden="true" className="absolute bottom-0 left-[0.625rem] top-7 w-px bg-ncat-silver" />
+                <span aria-hidden="true" className={`absolute bottom-0 ${RAIL_LINE_LEFT} top-7 w-px bg-ncat-silver`} />
             )}
         </>
     );
@@ -69,7 +85,7 @@ function Node({ tone, icon: Icon, last }) {
 function GapMarker({ label }) {
     return (
         <div className="relative pb-4">
-            <span aria-hidden="true" className="absolute -left-9 bottom-0 top-0 w-px bg-ncat-silver" />
+            <span aria-hidden="true" className={`absolute ${RAIL_LINE_LEFT} bottom-0 top-0 w-px bg-ncat-silver`} />
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
                 <ArrowUp className="size-3" aria-hidden="true" />
                 <span className="sr-only">Elapsed before the entry above: </span>

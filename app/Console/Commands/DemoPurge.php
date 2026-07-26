@@ -58,16 +58,37 @@ class DemoPurge extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Three categories, named for what happened to each rather than for what
+     * they are. The reader gets one pass at this, under pressure, to decide
+     * whether the system is clean: "Preserved reference data" listing
+     * `vendors: 0` read as a contradiction, because it lumped tables nothing
+     * touched together with tables that had demo rows taken out of them.
+     */
     protected function renderReport(array $report): void
     {
         $this->newLine();
-        $this->line('<comment>Transactional tables (must all be 0):</comment>');
-        $this->table(['Table', 'Rows'], collect($report['transactional'])->map(fn ($n, $t) => [$t, $n])->values()->all());
+        $this->line('<comment>1. Emptied completely (every count must be 0):</comment>');
+        $this->line('   Transactional data. Nothing here survives a purge.');
+        $this->table(['Table', 'Rows left'], collect($report['transactional'])->map(fn ($n, $t) => [$t, $n])->values()->all());
 
-        $this->line('<comment>Preserved reference data:</comment>');
-        $this->table(['Table', 'Rows'], collect($report['preserved'])->map(fn ($n, $t) => [$t, $n])->values()->all());
+        $this->line('<comment>2. Not touched (reference data, left exactly as it was):</comment>');
+        $this->line('   The catalogue the system needs to run. The purge does not read or write these.');
+        $this->table(['Table', 'Rows'], collect($report['untouched'])->map(fn ($n, $t) => [$t, $n])->values()->all());
 
-        $this->line('<comment>Document counters (restored, unconfirmed):</comment>');
+        $this->line('<comment>3. Demo rows removed, real rows kept:</comment>');
+        $this->line('   Mixed tables. Only rows created by the demo were deleted; anything real stayed.');
+        $this->table(
+            ['Table', 'Before', 'Demo rows removed', 'Real rows kept'],
+            collect($report['scrubbed'])->map(fn ($r, $t) => [
+                $t,
+                $r['before'] ?? '—',
+                $r['removed'] ?? '—',
+                $r['remaining'],
+            ])->values()->all(),
+        );
+
+        $this->line('<comment>Document counters (restored, awaiting confirmation):</comment>');
         $this->table(['Series', 'Next', 'Confirmed'],
             collect($report['counters'])->map(fn ($c, $s) => [$s, $c['next_number'], $c['confirmed'] ? 'yes' : 'no'])->values()->all());
     }

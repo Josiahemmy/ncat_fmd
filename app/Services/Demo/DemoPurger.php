@@ -57,7 +57,25 @@ class DemoPurger
         'parts',
     ];
 
-    /** Reference tables that must survive a purge (for the verification report). */
+    /**
+     * Reference tables the purge does not touch at all. Their counts are
+     * reported so the reader can see the catalogue is still standing.
+     */
+    public const UNTOUCHED = ['roles', 'permissions', 'aircraft', 'aircraft_types', 'ata_chapters', 'stores', 'document_counters', 'approval_workflows', 'approval_levels', 'app_settings'];
+
+    /**
+     * Tables holding a mix of demo and real rows, where the purge removes the
+     * demo rows and leaves the rest. These are reported with a before and after
+     * count, because a bare "after" of 0 or 1 reads as though the purge had
+     * emptied a table it was supposed to preserve.
+     */
+    public const DEMO_SCRUBBED = ['users', 'vendors'];
+
+    /**
+     * @deprecated Kept so anything still reading this name resolves. The report
+     * now separates UNTOUCHED from DEMO_SCRUBBED, because lumping them together
+     * is what made `vendors: 0` look like a contradiction.
+     */
     public const PRESERVED = ['users', 'roles', 'permissions', 'aircraft', 'aircraft_types', 'ata_chapters', 'stores', 'document_counters', 'approval_workflows', 'approval_levels', 'vendors', 'app_settings'];
 
     public function __construct(protected DemoBackup $backup, protected DemoMode $demo)
@@ -76,6 +94,14 @@ class DemoPurger
 
         // Snapshot the counter restore target before we touch anything.
         $snapshot = $this->demo->counterSnapshot() ?? [];
+
+        // Row counts for the mixed tables, taken before the deletes so the
+        // report can show "5 users, 4 demo removed, 1 kept" rather than a bare
+        // "1" that reads like the purge ate the account list.
+        $before = [];
+        foreach (self::DEMO_SCRUBBED as $table) {
+            $before[$table] = Schema::hasTable($table) ? DB::table($table)->count() : 0;
+        }
 
         DB::transaction(function () use ($snapshot) {
             // Uploaded files are not rows, so a table delete leaves them on
@@ -114,7 +140,7 @@ class DemoPurger
             $this->demo->deactivate();
         });
 
-        return $this->report();
+        return $this->report($before);
     }
 
     /**
@@ -143,20 +169,43 @@ class DemoPurger
         Storage::disk('local')->deleteDirectory('shipment-events');
     }
 
-    /** @return array<string, mixed> */
-    public function report(): array
+    /**
+     * @param  array<string,int>  $before  Pre-purge counts for the mixed tables.
+     * @return array<string, mixed>
+     */
+    public function report(array $before = []): array
     {
         $transactional = [];
         foreach (self::TRANSACTIONAL as $table) {
             $transactional[$table] = DB::table($table)->count();
         }
 
-        $preserved = [];
-        foreach (self::PRESERVED as $table) {
+        $untouched = [];
+        foreach (self::UNTOUCHED as $table) {
             if (Schema::hasTable($table)) {
-                $preserved[$table] = DB::table($table)->count();
+                $untouched[$table] = DB::table($table)->count();
             }
         }
+
+        // Before, removed, remaining for the mixed tables. `$before` is empty
+        // when report() is called on its own rather than through purge(), in
+        // which case the "removed" column is left null rather than guessed.
+        $scrubbed = [];
+        foreach (self::DEMO_SCRUBBED as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+            $remaining = DB::table($table)->count();
+            $was = $before[$table] ?? null;
+            $scrubbed[$table] = [
+                'before' => $was,
+                'removed' => $was === null ? null : $was - $remaining,
+                'remaining' => $remaining,
+            ];
+        }
+
+        // Retained for callers written against the old shape.
+        $preserved = $untouched + array_map(fn ($r) => $r['remaining'], $scrubbed);
 
         $counters = DB::table('document_counters')
             ->get(['series', 'next_number', 'confirmed'])
@@ -171,6 +220,8 @@ class DemoPurger
 
         return [
             'transactional' => $transactional,
+            'untouched' => $untouched,
+            'scrubbed' => $scrubbed,
             'preserved' => $preserved,
             'counters' => $counters,
             'demo_vendors' => $demoVendors,
