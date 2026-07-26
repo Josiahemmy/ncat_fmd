@@ -71,17 +71,25 @@ class StoresController extends Controller
             'store' => [
                 'id' => $store->id, 'name' => $store->name, 'slug' => $store->slug,
                 'type' => $store->type, 'description' => $store->description,
-                // Quarantine stays view-only: certification is the only action
-                // there, so no requisition or issue may be raised from it.
-                'allows_documents' => $store->type !== 'quarantine',
+                // System locations stay view-only: what moves in and out of them
+                // is driven by certification or by the loan register, so no
+                // requisition, issue or transfer may be raised against them.
+                'is_system' => $store->isSystemLocation(),
+                'allows_documents' => ! $store->isSystemLocation(),
                 // Issuing draws on bonded/dope stock only.
                 'allows_issue' => in_array($store->type, SivService::ISSUABLE_STORE_TYPES, true),
             ],
             'rows' => $rows,
             'filters' => ['search' => $search],
-            // Destinations for a transfer (exclude self + quarantine).
+            // Destinations for a transfer: self and every system location are
+            // out, so stock cannot be walked into Quarantine or either loan
+            // store without the document that accounts for it.
             'transferTargets' => Store::where('id', '!=', $store->id)
-                ->where('type', '!=', 'quarantine')->orderBy('sort_order')->get(['id', 'name']),
+                ->get(['id', 'name', 'type', 'sort_order'])
+                ->reject(fn (Store $s) => $s->isSystemLocation())
+                ->sortBy('sort_order')
+                ->values()
+                ->map(fn (Store $s) => ['id' => $s->id, 'name' => $s->name]),
         ]);
     }
 }

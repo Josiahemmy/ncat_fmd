@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -39,6 +40,9 @@ class DemoPurger
         'srv_items',
         // SRVs reference shipments, so they go before the shipment.
         'srvs',
+        // Attachments before their event; their files go separately, see
+        // deleteAttachmentFiles().
+        'shipment_event_attachments',
         'shipment_events',
         'shipments',
         'repair_order_lines',
@@ -74,6 +78,12 @@ class DemoPurger
         $snapshot = $this->demo->counterSnapshot() ?? [];
 
         DB::transaction(function () use ($snapshot) {
+            // Uploaded files are not rows, so a table delete leaves them on
+            // disk. Collect and remove them before the rows that name them go,
+            // otherwise the paths are gone and the files are unreachable
+            // orphans taking up shared-hosting quota.
+            $this->deleteAttachmentFiles();
+
             // Step 2 — empty transactional tables (child → parent).
             Schema::withoutForeignKeyConstraints(function () {
                 foreach (self::TRANSACTIONAL as $table) {
@@ -105,6 +115,32 @@ class DemoPurger
         });
 
         return $this->report();
+    }
+
+    /**
+     * Remove every stored attachment file, then the directory tree they sat
+     * in, so nothing survives the purge on disk. Driven off the rows rather
+     * than off a directory listing, so a file belonging to a disk the app no
+     * longer uses is still found and removed.
+     */
+    protected function deleteAttachmentFiles(): void
+    {
+        if (! Schema::hasTable('shipment_event_attachments')) {
+            return;
+        }
+
+        DB::table('shipment_event_attachments')
+            ->select('disk', 'path')
+            ->orderBy('id')
+            ->chunk(200, function ($rows) {
+                foreach ($rows as $row) {
+                    Storage::disk($row->disk ?: 'local')->delete($row->path);
+                }
+            });
+
+        // Sweep the parent directory too: an upload that was written but whose
+        // row was rolled back would otherwise linger with nothing pointing at it.
+        Storage::disk('local')->deleteDirectory('shipment-events');
     }
 
     /** @return array<string, mixed> */

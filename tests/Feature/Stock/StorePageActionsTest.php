@@ -110,4 +110,48 @@ class StorePageActionsTest extends TestCase
             ->assertJsonPath('props.currentStore.id', $bonded->id)
             ->assertJsonPath('props.filters.store', $bonded->id);
     }
+
+    // ---- Loan holding stores are system locations (spec §12.7) -----------
+
+    /**
+     * What sits in these two stores got there through the loan register, and
+     * only a return takes it out again. Offering a requisition or an issue
+     * would let a clerk move it without touching the loan that explains it.
+     */
+    protected function assertOffersNoDocumentActions(string $type): void
+    {
+        $this->page(route('stores.show', $this->store($type)->id))
+            ->assertOk()
+            ->assertJsonPath('props.store.is_system', true)
+            ->assertJsonPath('props.store.allows_documents', false)
+            ->assertJsonPath('props.store.allows_issue', false);
+    }
+
+    public function test_the_stock_lent_out_store_offers_no_document_actions(): void
+    {
+        $this->assertOffersNoDocumentActions(Store::LOAN_OUT);
+    }
+
+    public function test_the_stock_borrowed_in_store_offers_no_document_actions(): void
+    {
+        $this->assertOffersNoDocumentActions(Store::LOAN_IN);
+    }
+
+    /** A hand transfer must not be able to walk stock into a loan store. */
+    public function test_system_locations_are_not_offered_as_transfer_destinations(): void
+    {
+        $response = $this->page(route('stores.show', $this->store('bonded')->id))->assertOk();
+
+        $offered = collect($response->json('props.transferTargets'))->pluck('name');
+
+        foreach ([Store::LOAN_OUT, Store::LOAN_IN, 'quarantine'] as $type) {
+            $this->assertNotContains(
+                $this->store($type)->name,
+                $offered,
+                "{$type} is a system location and must not be a transfer destination.",
+            );
+        }
+
+        $this->assertContains($this->store('dope')->name, $offered, 'Real stores must still be offered.');
+    }
 }

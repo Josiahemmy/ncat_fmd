@@ -6,6 +6,7 @@ import { PageHeader } from '@/Components/ui/PageHeader';
 import { Button } from '@/Components/ui/Button';
 import { Badge } from '@/Components/ui/Badge';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/Components/ui/Modal';
+import { ActionErrors } from '@/Components/ui/ActionErrors';
 import { usePermissions } from '@/lib/permissions';
 
 export default function SivShow({ siv }) {
@@ -190,6 +191,7 @@ function PostModal({ siv, onClose }) {
         <Modal open onOpenChange={(o) => !o && onClose()}>
             <ModalContent className="max-w-md">
                 <ModalHeader><ModalTitle>Post SIV {siv.siv_number}</ModalTitle></ModalHeader>
+                <ActionErrors className="mb-3" />
                 <p className="text-sm text-muted-foreground">
                     Posting is irreversible and issues the stock. Continue?
                 </p>

@@ -35,7 +35,11 @@
         --secondary-foreground: 0 0% 100%;
 
         --muted: 210 40% 96%;
-        --muted-foreground: 218 9% 49%;   /* Steel #737B89          */
+        /* Steel, darkened from 49% to 45% lightness. At 49% this measured
+           4.13:1 on the page background, under the 4.5:1 WCAG AA floor for
+           body text, and it is the colour every secondary label uses. 45%
+           measures 4.88:1 and is visually near-identical. */
+        --muted-foreground: 218 9% 45%;   /* Steel #68707D          */
 
         --accent: 200 65% 95%;            /* soft blue hover surface */
         --accent-foreground: 233 72% 22%;

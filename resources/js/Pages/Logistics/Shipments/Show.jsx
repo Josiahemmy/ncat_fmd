@@ -38,6 +38,7 @@ function AddEventForm({ shipment, statuses, arrivalStatus }) {
         event_date: new Date().toISOString().slice(0, 10),
         note: '',
         is_arrival: false,
+        attachments: [],
     });
 
     const pick = (value) => {
@@ -59,8 +60,11 @@ function AddEventForm({ shipment, statuses, arrivalStatus }) {
         e.preventDefault();
         form.post(route('shipments.events.store', shipment.id), {
             preserveScroll: true,
+            // Files force a multipart body, which Inertia handles once the
+            // payload contains one.
+            forceFormData: true,
             onSuccess: () => {
-                form.reset('note');
+                form.reset('note', 'attachments');
                 form.setData((d) => ({ ...d, is_arrival: false }));
             },
         });
@@ -100,6 +104,29 @@ function AddEventForm({ shipment, statuses, arrivalStatus }) {
                     placeholder="Anything worth recording. Correct an earlier entry here rather than editing it."
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
+            </div>
+
+            <div className="space-y-1.5">
+                <Label htmlFor="ev-files">Paperwork</Label>
+                <input
+                    id="ev-files"
+                    type="file"
+                    multiple
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    onChange={(e) => form.setData('attachments', Array.from(e.target.files ?? []))}
+                    className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+                />
+                <p className="text-xs text-muted-foreground">
+                    Airway bill, customs release, agent&rsquo;s invoice. PDF, JPG, PNG or WEBP, up to 5 MB each.
+                </p>
+                {form.data.attachments.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                        {form.data.attachments.length} file{form.data.attachments.length === 1 ? '' : 's'} ready to upload.
+                    </p>
+                )}
+                {Object.keys(form.errors)
+                    .filter((k) => k.startsWith('attachments'))
+                    .map((k) => <p key={k} className="text-sm text-destructive">{form.errors[k]}</p>)}
             </div>
 
             <label className="flex cursor-pointer items-start gap-2.5">

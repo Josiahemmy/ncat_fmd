@@ -23,6 +23,10 @@ Route::middleware('auth')->group(function () {
         Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
         Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])
             ->whereNumber('shipment')->name('shipments.show');
+        // The file lives outside the document root, so this gate is the only
+        // thing standing between a customs document and the open internet.
+        Route::get('shipment-attachments/{attachment}', [ShipmentController::class, 'downloadAttachment'])
+            ->whereNumber('attachment')->name('shipments.attachments.download');
     });
     Route::middleware('can:shipping.manage')->group(function () {
         Route::get('shipments/create', [ShipmentController::class, 'create'])->name('shipments.create');

@@ -6,10 +6,13 @@ use App\Models\PurchaseOrder;
 use App\Models\RepairOrder;
 use App\Models\Shipment;
 use App\Models\ShipmentEvent;
+use App\Models\ShipmentEventAttachment;
 use App\Models\User;
 use App\Services\Documents\DocumentNumberService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Shipping (spec §12.6). The service owns two things worth stating plainly:
@@ -74,9 +77,12 @@ class ShipmentService
      *
      * @param  array<string, mixed>  $data
      */
-    public function addEvent(Shipment $shipment, array $data, ?User $user = null): ShipmentEvent
+    /**
+     * @param  array<int, \Illuminate\Http\UploadedFile>  $files  Paperwork for this entry.
+     */
+    public function addEvent(Shipment $shipment, array $data, ?User $user = null, array $files = []): ShipmentEvent
     {
-        return DB::transaction(function () use ($shipment, $data, $user) {
+        return DB::transaction(function () use ($shipment, $data, $user, $files) {
             $event = $shipment->events()->create([
                 'status' => trim($data['status']),
                 'event_date' => $data['event_date'],
@@ -85,10 +91,38 @@ class ShipmentService
                 'recorded_by_user_id' => $user?->id,
             ]);
 
+            foreach ($files as $file) {
+                $this->attach($event, $file, $user);
+            }
+
             $this->refreshFromEvents($shipment);
 
             return $event;
         });
+    }
+
+    /**
+     * Store one file against an event.
+     *
+     * The name on disk is generated and the clerk's name is kept only as a
+     * label, so a crafted filename cannot escape the directory or collide with
+     * another upload. `storePubliclyAs` is deliberately not used: the local
+     * disk is `storage/app`, outside the document root, and the only way to
+     * read a file back is the permission-gated download route.
+     */
+    public function attach(ShipmentEvent $event, UploadedFile $file, ?User $user = null): ShipmentEventAttachment
+    {
+        $path = $file->store("shipment-events/{$event->id}", 'local');
+
+        return $event->attachments()->create([
+            'disk' => 'local',
+            'path' => $path,
+            // Trimmed to the basename so a path in the upload name is discarded.
+            'original_name' => Str::limit(basename($file->getClientOriginalName()), 120, ''),
+            'mime_type' => $file->getClientMimeType(),
+            'size_bytes' => $file->getSize(),
+            'uploaded_by_user_id' => $user?->id,
+        ]);
     }
 
     /**
