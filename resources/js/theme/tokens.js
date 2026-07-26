@@ -6,7 +6,7 @@
  */
 export const palette = {
     primary: {
-        blue: '#009DE0', // Aviation Blue — primary brand field
+        blue: '#008BC7', // Aviation Blue, the 3:1 brand field (was #009DE0)
         navy: '#101A62', // Deep Navy — outlines, headings, premium contrast
         sky: '#13B8F0', // Sky Blue — highlights, gradients
     },

@@ -2,6 +2,7 @@
 
 namespace App\Services\Shipping;
 
+use App\Exceptions\Shipping\ShipmentClosedException;
 use App\Models\PurchaseOrder;
 use App\Models\RepairOrder;
 use App\Models\Shipment;
@@ -75,13 +76,23 @@ class ShipmentService
      * arrival stamps `arrived_at`, which is what stops the shipment counting as
      * overdue and what unlocks the SRV handoff.
      *
+     * Refuses on a closed shipment. Without this the header could be walked
+     * backwards after the fact: appending any event re-derives `current_status`
+     * from the latest entry, so a closed consignment that arrived in June could
+     * be made to read "Shipped" again. Correcting a closed shipment goes
+     * through {@see reopen}.
+     *
      * @param  array<string, mixed>  $data
-     */
-    /**
      * @param  array<int, \Illuminate\Http\UploadedFile>  $files  Paperwork for this entry.
+     *
+     * @throws \App\Exceptions\Shipping\ShipmentClosedException
      */
     public function addEvent(Shipment $shipment, array $data, ?User $user = null, array $files = []): ShipmentEvent
     {
+        if ($shipment->closed_at !== null) {
+            throw ShipmentClosedException::forAppend($shipment->reference);
+        }
+
         return DB::transaction(function () use ($shipment, $data, $user, $files) {
             $event = $shipment->events()->create([
                 'status' => trim($data['status']),
@@ -148,12 +159,53 @@ class ShipmentService
         return $shipment->refresh();
     }
 
-    /** Mark a shipment finished. Reversible only by an admin re-opening it. */
-    public function close(Shipment $shipment): Shipment
+    /**
+     * Mark a shipment finished. The timeline is frozen from here: {@see addEvent}
+     * refuses while `closed_at` is set. Reversible through {@see reopen}, which
+     * anyone holding `shipping.manage` can do and which the activity log records.
+     */
+    public function close(Shipment $shipment, ?User $user = null): Shipment
     {
         $shipment->forceFill(['closed_at' => now()])->save();
 
+        activity('shipment')
+            ->performedOn($shipment)
+            ->causedBy($user)
+            ->log("Closed shipment {$shipment->reference}");
+
         return $shipment;
+    }
+
+    /**
+     * Re-open a closed shipment so a correction can be appended.
+     *
+     * Deliberately not a delete and not an edit. The entry that was wrong stays
+     * on the timeline, the re-open is recorded, and the correcting entry lands
+     * after it, so the trail reads as what was believed, when, and what put it
+     * right. Callers are expected to close it again afterwards.
+     *
+     * A reason is required rather than optional: the whole point of leaving the
+     * original entry in place is that someone later can tell why it changed.
+     */
+    public function reopen(Shipment $shipment, string $reason, ?User $user = null): Shipment
+    {
+        if ($shipment->closed_at === null) {
+            return $shipment;
+        }
+
+        $closedAt = $shipment->closed_at;
+        $shipment->forceFill(['closed_at' => null])->save();
+
+        activity('shipment')
+            ->performedOn($shipment)
+            ->causedBy($user)
+            ->withProperties([
+                'reason' => $reason,
+                'was_closed_at' => $closedAt?->toDateTimeString(),
+            ])
+            ->log("Re-opened shipment {$shipment->reference}: {$reason}");
+
+        return $shipment->refresh();
     }
 
     /**

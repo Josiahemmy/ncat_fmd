@@ -70,6 +70,38 @@ class DemoPurgeTest extends TestCase
         }
     }
 
+    /**
+     * The report is read once, under pressure, to decide whether the system is
+     * clean. It has to separate "emptied" from "not touched" from "demo rows
+     * taken out", because a bare `vendors: 0` under a heading that said
+     * "Preserved reference data" read as a contradiction.
+     */
+    public function test_the_report_separates_untouched_tables_from_scrubbed_ones(): void
+    {
+        $this->seedDemo();
+        $report = app(\App\Services\Demo\DemoPurger::class)->purge();
+
+        // Reference data the purge never reads or writes.
+        $this->assertArrayHasKey('untouched', $report);
+        $this->assertArrayHasKey('aircraft', $report['untouched']);
+        $this->assertArrayNotHasKey('users', $report['untouched'], 'users is a mixed table, not an untouched one.');
+        $this->assertArrayNotHasKey('vendors', $report['untouched'], 'vendors is a mixed table, not an untouched one.');
+
+        // Mixed tables, reported as before / removed / remaining.
+        $this->assertArrayHasKey('scrubbed', $report);
+        $users = $report['scrubbed']['users'];
+        $this->assertSame(
+            $users['before'] - $users['removed'],
+            $users['remaining'],
+            'The three user figures must reconcile, or the reader cannot trust any of them.',
+        );
+        $this->assertGreaterThan(0, $users['removed'], 'The demo accounts should have been removed.');
+        $this->assertGreaterThanOrEqual(1, $users['remaining'], 'The real administrator must survive.');
+
+        $vendors = $report['scrubbed']['vendors'];
+        $this->assertSame($vendors['before'] - $vendors['removed'], $vendors['remaining']);
+    }
+
     public function test_purge_preserves_reference_data_and_real_users(): void
     {
         $realAdmin = User::where('email', 'superadmin@ncatfmd.com.ng')->firstOrFail();

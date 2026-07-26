@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
-    AlertTriangle, CheckCircle2, Lock, PackagePlus, Plane, Ship, Truck,
+    AlertTriangle, CheckCircle2, Lock, LockOpen, PackagePlus, Plane, Ship, Truck,
 } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/ui/PageHeader';
@@ -22,6 +22,38 @@ function Field({ label, children }) {
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
             <dd className="mt-0.5 text-sm text-ncat-navy">{children ?? '—'}</dd>
         </div>
+    );
+}
+
+/**
+ * Re-open a closed shipment. The reason is required because it is what the
+ * activity log carries; without it the trail records that someone unlocked a
+ * finalised record and nothing about why.
+ */
+function ReopenForm({ shipment }) {
+    const form = useForm({ reason: '' });
+
+    const submit = (e) => {
+        e.preventDefault();
+        form.post(route('shipments.reopen', shipment.id), { preserveScroll: true });
+    };
+
+    return (
+        <form onSubmit={submit} className="space-y-3">
+            <div className="space-y-1.5">
+                <Label htmlFor="reopen-reason">Why is it being re-opened?</Label>
+                <Input
+                    id="reopen-reason"
+                    value={form.data.reason}
+                    onChange={(e) => form.setData('reason', e.target.value)}
+                    placeholder="e.g. arrival was recorded against the wrong date"
+                />
+                {form.errors.reason && <p className="text-sm text-destructive">{form.errors.reason}</p>}
+            </div>
+            <Button type="submit" variant="outline" disabled={form.processing} className="w-full">
+                <LockOpen className="size-4" /> Re-open shipment
+            </Button>
+        </form>
     );
 }
 
@@ -241,7 +273,21 @@ export default function ShipmentShow({ shipment, statuses, arrivalStatus, can })
                         </Card>
                     )}
 
-                    {can.manage && (
+                    {can.manage && shipment.is_closed && (
+                        <Card className="p-5">
+                            <h2 className="mb-1 flex items-center gap-2 font-display text-sm font-semibold text-ncat-navy">
+                                <Lock className="size-4 text-muted-foreground" /> Timeline closed
+                            </h2>
+                            <p className="mb-4 text-xs text-muted-foreground">
+                                No further entries can be recorded against a closed shipment. If something here
+                                is wrong, re-open it, record the correction, then close it again. Nothing already
+                                on the timeline is removed.
+                            </p>
+                            <ReopenForm shipment={shipment} />
+                        </Card>
+                    )}
+
+                    {can.manage && !shipment.is_closed && (
                         <Card className="p-5">
                             <h2 className="mb-1 font-display text-sm font-semibold text-ncat-navy">
                                 Record an event

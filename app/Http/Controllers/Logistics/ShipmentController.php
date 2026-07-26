@@ -188,9 +188,29 @@ class ShipmentController extends Controller
 
     public function close(Request $request, Shipment $shipment): RedirectResponse
     {
-        $this->shipments->close($shipment);
+        $this->shipments->close($shipment, $request->user());
 
         return back()->with('success', "Shipment {$shipment->reference} closed.");
+    }
+
+    /**
+     * Re-open a closed shipment so a correction can be recorded against it.
+     *
+     * Gated on `shipping.manage` in the route, the same permission that records
+     * events, because re-opening exists only to record one. The reason is
+     * required and goes to the activity log.
+     */
+    public function reopen(Request $request, Shipment $shipment): RedirectResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
+        ], [
+            'reason.required' => 'Say why this shipment is being re-opened. It goes on the record.',
+        ]);
+
+        $this->shipments->reopen($shipment, $data['reason'], $request->user());
+
+        return back()->with('success', "Shipment {$shipment->reference} re-opened. Record the correction, then close it again.");
     }
 
     /**

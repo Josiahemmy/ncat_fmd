@@ -21,7 +21,7 @@ import {
  * reads as one instrument panel.
  */
 const C = {
-    blue: '#009DE0',
+    blue: '#008BC7',
     cyan: '#00C2FF',
     navy: '#101A62',
     amber: '#F59E0B',
