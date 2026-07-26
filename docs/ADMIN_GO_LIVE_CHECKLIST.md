@@ -328,3 +328,38 @@ one of them decides whether the backup settings are still right._
       afterwards it means migrating live loan records and their stock movements,
       which are append-only, rather than changing empty tables. Treat this as
       time-sensitive rather than optional.
+
+### Repair SHP-26-0002 (one-off, do this once Phase 11 is deployed)
+
+_Why: this consignment arrived on 26 June and was closed, but an entry recorded
+against it after closing walked its status back to "Shipped". The Shipping list
+still shows that. The bug that allowed it is fixed; the row it already damaged
+is not, and only the re-open path can put it right without deleting anything._
+
+Treat this as the rehearsal for the correction path generally. It is the first
+time anyone will use re-open on live data, and the shape of it is what every
+future correction looks like.
+
+- [ ] Open **Shipping → SHP-26-0002**. Confirm it reads **Closed** and that the
+      newest timeline entry is a "Shipped" entry dated **26 July 2026** with a
+      note about being recorded after closing.
+- [ ] **Re-open** it (`shipping.manage`). Give the reason plainly, for example:
+      *"Status was overwritten by an entry recorded after the shipment was
+      closed. Restoring the arrival status."* The reason goes to the activity log.
+- [ ] Record the correcting event: status **Arrived at NCAT**, and put the real
+      history in the note, for example: *"Correction. The 'Shipped' entry of
+      26 Jul 2026 was recorded after this shipment had been closed and is not a
+      real movement. The consignment arrived at NCAT on 26 Jun 2026."*
+- [ ] **Date that correcting event today, not 26 June.** This is the part that
+      catches people. The status on the Shipping list comes from whichever entry
+      has the **latest date**, not from whichever was typed last. Backdating the
+      correction to the true arrival date leaves the 26 July entry as the newest
+      one and the list carries on showing "Shipped". The real date belongs in the
+      note. (Verified the hard way during Phase 11: the first attempt was
+      backdated and the header did not move.)
+- [ ] **Close the shipment again.**
+- [ ] Confirm the Shipping list now shows SHP-26-0002 as **Arrived at NCAT** and
+      the state column reads **Closed**. Confirm the recorded arrival date is
+      still **26 June 2026**: the correction must not move when the goods landed.
+- [ ] Confirm **Administration → Activity Log** shows the re-open (with the
+      reason) and the close, against your name.
