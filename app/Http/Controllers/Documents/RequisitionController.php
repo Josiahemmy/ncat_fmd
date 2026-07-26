@@ -283,7 +283,24 @@ class RequisitionController extends Controller
             'repair_facility' => $r->repair_facility,
             'date_sent' => $r->date_sent?->toDateString(),
             'repair_order_ref' => $r->repair_order_ref,
+            // The order that stamped the reference above, when the unit went out
+            // on one raised here rather than on a reference typed in by hand.
+            'repair_order' => $this->linkedRepairOrder($r),
             'removal_completed_at' => $r->removal_completed_at?->toDayDateTimeString(),
         ];
+    }
+
+    /** @return array{id: int, ro_number: string, status: string}|null */
+    protected function linkedRepairOrder(Requisition $r): ?array
+    {
+        $line = \App\Models\RepairOrderLine::where('requisition_id', $r->id)
+            ->with('repairOrder:id,ro_number,status')
+            ->orderByDesc('id')->first();
+
+        return $line?->repairOrder ? [
+            'id' => $line->repairOrder->id,
+            'ro_number' => $line->repairOrder->ro_number,
+            'status' => $line->repairOrder->status,
+        ] : null;
     }
 }

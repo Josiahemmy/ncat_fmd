@@ -38,6 +38,9 @@ class ApprovalService
     /** The level binding used when no workflow configuration can be found. */
     public const FALLBACK_PERMISSION = 'requisitions.approve';
 
+    /** The gate-bypass role: holds every permission without being granted one. */
+    public const SUPER_ADMIN_ROLE = 'Super Admin';
+
     public function activeWorkflow(string $documentType = self::DOCUMENT_TYPE): ?ApprovalWorkflow
     {
         return ApprovalWorkflow::where('document_type', $documentType)
@@ -459,5 +462,66 @@ class ApprovalService
     public function bindablePermissions(): array
     {
         return Permission::orderBy('name')->pluck('name')->all();
+    }
+
+    /**
+     * How many active users each bindable permission and role currently resolves
+     * to. The admin screen uses this to warn when a level would have no holder.
+     * A level nobody can satisfy stalls every requisition that reaches it.
+     *
+     * Counts are returned for the whole catalogue rather than just the saved
+     * levels so the warning can update as the admin changes a binding, before
+     * anything is saved.
+     *
+     * Super Admins are reported on their own and left out of the permission
+     * counts, so the two figures can be added without double-counting. The role
+     * seeder grants them every permission outright, which would otherwise make
+     * them look like ordinary holders of each one. Role counts do include them:
+     * a role binding is a literal role check, which they satisfy only for roles
+     * they actually hold.
+     *
+     * @return array{permissions: array<string,int>, roles: array<string,int>, super_admins: int}
+     */
+    public function bindingHolderCounts(): array
+    {
+        $morph = (new User)->getMorphClass();
+
+        $roles = DB::table('model_has_roles as mhr')
+            ->join('roles as r', 'r.id', '=', 'mhr.role_id')
+            ->join('users as u', 'u.id', '=', 'mhr.model_id')
+            ->where('mhr.model_type', $morph)
+            ->where('u.is_active', true)
+            ->get(['r.name as role', 'mhr.model_id as user_id']);
+
+        $superAdminIds = $roles->where('role', self::SUPER_ADMIN_ROLE)->pluck('user_id')->unique();
+
+        $eligible = User::query()->where('is_active', true)
+            ->whereKeyNot($superAdminIds->all())->pluck('id');
+
+        // Direct grants and role-derived grants both count, and a user holding a
+        // permission by both routes must only be counted once.
+        $direct = DB::table('model_has_permissions as mhp')
+            ->join('permissions as p', 'p.id', '=', 'mhp.permission_id')
+            ->where('mhp.model_type', $morph)
+            ->whereIn('mhp.model_id', $eligible)
+            ->get(['p.name as permission', 'mhp.model_id as user_id']);
+
+        $viaRole = DB::table('model_has_roles as mhr')
+            ->join('role_has_permissions as rhp', 'rhp.role_id', '=', 'mhr.role_id')
+            ->join('permissions as p', 'p.id', '=', 'rhp.permission_id')
+            ->where('mhr.model_type', $morph)
+            ->whereIn('mhr.model_id', $eligible)
+            ->get(['p.name as permission', 'mhr.model_id as user_id']);
+
+        return [
+            'permissions' => $direct->concat($viaRole)
+                ->groupBy('permission')
+                ->map(fn ($rows) => $rows->pluck('user_id')->unique()->count())
+                ->all(),
+            'roles' => $roles->groupBy('role')
+                ->map(fn ($rows) => $rows->pluck('user_id')->unique()->count())
+                ->all(),
+            'super_admins' => $superAdminIds->count(),
+        ];
     }
 }

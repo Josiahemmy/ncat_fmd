@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Documents;
 
 use App\Http\Controllers\Controller;
 use App\Models\Part;
+use App\Models\PurchaseOrder;
 use App\Models\Srv;
 use App\Models\Store;
 use App\Services\Documents\DocumentNumberService;
@@ -47,7 +48,37 @@ class SrvController extends Controller
             'quarantineId' => Store::where('type', 'quarantine')->value('id'),
             'fuelStoreId' => Store::where('type', 'fuel')->value('id'),
             'nextNumber' => app(DocumentNumberService::class)->peek('srv'),
+            'purchaseOrders' => $this->receivablePurchaseOrders(),
         ]);
+    }
+
+    /**
+     * Open purchase orders and their outstanding lines, so receiving can be
+     * booked straight against the order rather than retyped.
+     */
+    protected function receivablePurchaseOrders()
+    {
+        return PurchaseOrder::query()
+            ->whereIn('status', ['issued', 'partially_received'])
+            ->with(['vendor:id,name', 'lines'])
+            ->orderByDesc('id')->get()
+            ->map(fn (PurchaseOrder $po) => [
+                'id' => $po->id,
+                'po_number' => $po->po_number,
+                'vendor' => $po->vendor?->name,
+                'lines' => $po->lines
+                    ->reject(fn ($l) => $l->isFullyReceived())
+                    ->map(fn ($l) => [
+                        'id' => $l->id,
+                        'line_no' => $l->line_no,
+                        'description' => $l->description,
+                        'part_id' => $l->part_id,
+                        'part_number' => $l->part_number,
+                        'qty_to_order' => $l->qty_to_order,
+                        'qty_received' => $l->qty_received,
+                        'outstanding' => $l->outstanding(),
+                    ])->values(),
+            ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -60,6 +91,7 @@ class SrvController extends Controller
             'destination_store_id' => $data['destination_store_id'],
             'supplier' => $data['supplier'] ?? null,
             'lpo_or_petty_cash_ref' => $data['lpo_or_petty_cash_ref'] ?? null,
+            'purchase_order_id' => $data['purchase_order_id'] ?? null,
             'head_of_receiving_dept' => $data['head_of_receiving_dept'] ?? null,
             'storekeeper' => $data['storekeeper'] ?? null,
             'remarks' => $data['remarks'] ?? null,
@@ -73,7 +105,11 @@ class SrvController extends Controller
 
     public function show(Srv $srv): Response
     {
-        $srv->load(['items.part:id,part_number,description,is_serialized,has_shelf_life,is_fuel', 'destinationStore:id,name,type', 'postedBy:id,name']);
+        $srv->load([
+            'items.part:id,part_number,description,is_serialized,has_shelf_life,is_fuel',
+            'destinationStore:id,name,type', 'postedBy:id,name',
+            'purchaseOrder:id,po_number,status',
+        ]);
 
         return Inertia::render('Srv/Show', [
             'srv' => [
@@ -84,6 +120,11 @@ class SrvController extends Controller
                 'destination_type' => $srv->destinationStore?->type,
                 'supplier' => $srv->supplier,
                 'lpo_or_petty_cash_ref' => $srv->lpo_or_petty_cash_ref,
+                'purchase_order' => $srv->purchaseOrder ? [
+                    'id' => $srv->purchaseOrder->id,
+                    'po_number' => $srv->purchaseOrder->po_number,
+                    'status' => $srv->purchaseOrder->status,
+                ] : null,
                 'head_of_receiving_dept' => $srv->head_of_receiving_dept,
                 'storekeeper' => $srv->storekeeper,
                 'status' => $srv->status,
@@ -136,6 +177,7 @@ class SrvController extends Controller
             $srv->items()->create([
                 'line_no' => $n + 1,
                 'part_id' => $item['part_id'],
+                'purchase_order_line_id' => $item['purchase_order_line_id'] ?? null,
                 'quantity' => $item['quantity'],
                 'supplier_details' => $item['supplier_details'] ?? null,
                 'fol_no' => $item['fol_no'] ?? null,
@@ -153,16 +195,32 @@ class SrvController extends Controller
 
     protected function validated(Request $request): array
     {
+        $data = $this->rules($request);
+
+        // `validated()` assembles its result rule by rule, so an item that omits
+        // a nullable key an earlier item supplied lands out of order. Line order
+        // is the printed ITEM No., so it is restored from the client's indexes.
+        if (isset($data['items'])) {
+            ksort($data['items']);
+        }
+
+        return $data;
+    }
+
+    protected function rules(Request $request): array
+    {
         return $request->validate([
             'srv_date' => ['required', 'date'],
             'destination_store_id' => ['required', 'exists:stores,id'],
             'supplier' => ['nullable', 'string', 'max:255'],
             'lpo_or_petty_cash_ref' => ['nullable', 'string', 'max:255'],
+            'purchase_order_id' => ['nullable', 'exists:purchase_orders,id'],
             'head_of_receiving_dept' => ['nullable', 'string', 'max:255'],
             'storekeeper' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.part_id' => ['required', 'exists:parts,id'],
+            'items.*.purchase_order_line_id' => ['nullable', 'exists:purchase_order_lines,id'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
             'items.*.supplier_details' => ['nullable', 'string', 'max:500'],
             'items.*.fol_no' => ['nullable', 'string', 'max:100'],

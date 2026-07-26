@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Part;
+use App\Models\PurchaseOrder;
+use App\Models\RepairOrder;
 use App\Models\Requisition;
 use App\Models\Siv;
 use App\Models\Srv;
 use App\Models\Store;
+use App\Services\Documents\OrderSettings;
 use App\Services\Stock\TallyService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -95,6 +98,39 @@ class PdfController extends Controller
             'items' => $items,
             'total' => (float) $srv->items->sum('amount'),
         ], "SRV-{$srv->srv_number}.pdf");
+    }
+
+    /**
+     * The two order forms print on their own letterhead, not the internal
+     * voucher house style: NCAT crest and aerodrome address block, a boxed
+     * title, a ref-and-date line, the vendor address, a NOTE box, the contacts,
+     * and the priority checkboxes. They share `pdf.orders.layout` for that
+     * frame and differ only in their table and NOTE text.
+     */
+    public function purchaseOrder(PurchaseOrder $purchaseOrder, OrderSettings $settings)
+    {
+        $purchaseOrder->load(['vendor', 'lines.part:id,part_number,description']);
+
+        return $this->render('pdf.orders.purchase-order', [
+            'order' => $purchaseOrder,
+            'settings' => $settings->all(),
+        ], 'PurchaseOrder-'.$this->slugRef($purchaseOrder->po_number, $purchaseOrder->id).'.pdf');
+    }
+
+    public function repairOrder(RepairOrder $repairOrder, OrderSettings $settings)
+    {
+        $repairOrder->load(['vendor', 'lines.part:id,part_number,description', 'lines.partSerial:id,serial_number']);
+
+        return $this->render('pdf.orders.repair-order', [
+            'order' => $repairOrder,
+            'settings' => $settings->all(),
+        ], 'RepairOrder-'.$this->slugRef($repairOrder->ro_number, $repairOrder->id).'.pdf');
+    }
+
+    /** Order refs contain slashes, which cannot go in a download filename. */
+    protected function slugRef(?string $reference, int $id): string
+    {
+        return $reference ? str_replace('/', '-', $reference) : "draft-{$id}";
     }
 
     public function tally(Request $request, Part $part, TallyService $tally)

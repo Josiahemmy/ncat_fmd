@@ -19,14 +19,18 @@ use Illuminate\Support\Facades\DB;
  */
 class SrvService
 {
-    public function __construct(protected StockService $stock)
-    {
+    public function __construct(
+        protected StockService $stock,
+        protected PurchaseOrderService $purchaseOrders,
+    ) {
     }
 
     /** Guard used by the controller before posting so users get clean field errors. */
     public function validationErrors(Srv $srv): array
     {
         $errors = [];
+        $claimed = [];
+
         foreach ($srv->items as $i => $item) {
             $part = $item->part;
             if ($part->has_shelf_life && ! $item->batch_no) {
@@ -36,6 +40,21 @@ class SrvService
                 $serials = array_filter((array) $item->serials);
                 if (count($serials) !== (int) $item->quantity) {
                     $errors["items.{$i}.serials"] = "Capture exactly {$item->quantity} serial number(s) for {$part->part_number}.";
+                }
+            }
+
+            // Over-receipt against a purchase order line is caught here so it
+            // reads as a field error rather than surfacing from the ledger.
+            // Several SRV lines can point at one PO line, so they accumulate.
+            if ($line = $item->purchaseOrderLine) {
+                $claimed[$line->id] = ($claimed[$line->id] ?? 0) + (float) $item->quantity;
+
+                if ($line->qty_received + $claimed[$line->id] > $line->qty_to_order) {
+                    $errors["items.{$i}.quantity"] = sprintf(
+                        'Line %d of the purchase order has only %s outstanding.',
+                        $line->line_no,
+                        rtrim(rtrim(number_format($line->outstanding(), 2, '.', ''), '0'), '.'),
+                    );
                 }
             }
         }
@@ -95,10 +114,41 @@ class SrvService
                 'posted_by_user_id' => $user?->id,
             ]);
 
+            // Book the arrival against the purchase order in the same
+            // transaction as the ledger, so the two can never disagree.
+            $this->creditPurchaseOrder($srv, $user);
+
             activity('srv')->causedBy($user)->performedOn($srv)
                 ->event('posted')->log("Posted SRV {$srv->srv_number} into {$srv->destinationStore->name}");
 
             return $srv;
         });
+    }
+
+    /**
+     * Add this SRV's quantities to the purchase order lines they were received
+     * against, which advances the order to partially_received or received.
+     * Lines with no PO line picked are ordinary stock receipts and are ignored.
+     */
+    protected function creditPurchaseOrder(Srv $srv, ?User $user): void
+    {
+        $order = $srv->purchaseOrder;
+
+        if (! $order) {
+            return;
+        }
+
+        $received = [];
+
+        foreach ($srv->items as $item) {
+            if ($item->purchase_order_line_id) {
+                $received[$item->purchase_order_line_id] =
+                    ($received[$item->purchase_order_line_id] ?? 0) + (float) $item->quantity;
+            }
+        }
+
+        if ($received) {
+            $this->purchaseOrders->applyReceipt($order, $received, $srv, $user);
+        }
     }
 }

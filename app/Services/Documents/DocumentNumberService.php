@@ -14,7 +14,8 @@ use Illuminate\Support\Carbon;
  *
  * Plain series (requisition / srv / siv) return their counter's padded serial
  * directly. Work Orders wrap the global running serial in the department's
- * canonical ref: FMD/{wo_code}/{MM}/{YY}/{serial}.
+ * canonical ref: FMD/{wo_code}/{MM}/{YY}/{serial}. Purchase and Repair Orders
+ * wrap theirs in the NCAT/FMD/{PO|RO}/TS/... refs printed on those forms.
  */
 class DocumentNumberService
 {
@@ -43,6 +44,43 @@ class DocumentNumberService
             $at->format('m'),
             $at->format('y'),
             $serial,
+        );
+    }
+
+    /**
+     * Reserve a Purchase Order reference: NCAT/FMD/PO/TS/{D}/{M}/{serial}.
+     *
+     * Day and month come from the order's issue date and are NOT zero-padded:
+     * the sample reads NCAT/FMD/PO/TS/30/6/307 for 30th June. Reserved when the
+     * order leaves draft, so an abandoned draft cannot leave a gap.
+     */
+    public function reservePurchaseOrder(?CarbonInterface $at = null): string
+    {
+        $at ??= Carbon::now();
+
+        return sprintf(
+            'NCAT/FMD/PO/TS/%d/%d/%s',
+            $at->day,
+            $at->month,
+            $this->counter('purchase_order')->reserve(),
+        );
+    }
+
+    /**
+     * Reserve a Repair Order reference: NCAT/FMD/RO/TS/{MM}/{serial}.
+     *
+     * Month only, and zero-padded here: the sample reads NCAT/FMD/RO/TS/03/298
+     * for 4th March. The two order series pad differently on the paper, so they
+     * are formatted separately rather than sharing one helper.
+     */
+    public function reserveRepairOrder(?CarbonInterface $at = null): string
+    {
+        $at ??= Carbon::now();
+
+        return sprintf(
+            'NCAT/FMD/RO/TS/%s/%s',
+            $at->format('m'),
+            $this->counter('repair_order')->reserve(),
         );
     }
 

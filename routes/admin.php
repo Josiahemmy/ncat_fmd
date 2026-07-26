@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AircraftTypeController;
 use App\Http\Controllers\Admin\ApprovalWorkflowController;
 use App\Http\Controllers\Admin\AtaChapterController;
 use App\Http\Controllers\Admin\DocumentCounterController;
+use App\Http\Controllers\Admin\OrderSettingsController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\StoreController;
 use App\Http\Controllers\Admin\UserController;
@@ -85,6 +86,12 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::middleware('can:approvals.manage')->group(function () {
         Route::get('approval-workflow', [ApprovalWorkflowController::class, 'index'])->name('approvals.index');
         Route::put('approval-workflow/{workflow}', [ApprovalWorkflowController::class, 'update'])->name('approvals.update');
+    });
+
+    // Letterhead and contacts printed on the Purchase / Repair Order forms.
+    Route::middleware('can:orders.edit')->group(function () {
+        Route::get('order-documents', [OrderSettingsController::class, 'edit'])->name('order-documents.edit');
+        Route::put('order-documents', [OrderSettingsController::class, 'update'])->name('order-documents.update');
     });
 
     // Activity log

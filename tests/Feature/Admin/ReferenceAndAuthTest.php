@@ -25,7 +25,8 @@ class ReferenceAndAuthTest extends TestCase
         $this->assertSame(26, Aircraft::count());
         $this->assertSame(4, Store::count());
         $this->assertGreaterThanOrEqual(40, AtaChapter::count());
-        $this->assertSame(4, DocumentCounter::count());
+        // work_order, requisition, srv, siv, purchase_order, repair_order
+        $this->assertSame(6, DocumentCounter::count());
     }
 
     public function test_stores_have_the_correct_types(): void

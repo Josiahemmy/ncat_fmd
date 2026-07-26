@@ -151,4 +151,54 @@ class ApprovalWorkflowAdminTest extends TestCase
             ->assertOk()
             ->assertJsonPath('props.inFlight', 3);
     }
+
+    /**
+     * A role with no active holder is the zero-holder case the screen must warn
+     * about: every requisition reaching that level would stall with nobody able
+     * to decide it, and Super Admins cannot cover a role binding.
+     */
+    public function test_a_role_with_no_active_holders_resolves_to_zero(): void
+    {
+        Role::findOrCreate('HOD', 'web');
+        $admin = $this->admin();
+        $admin->assignRole('Super Admin');
+
+        $holders = $this->page($admin, route('admin.approvals.index'))
+            ->assertOk()->json('props.holders');
+
+        $this->assertArrayNotHasKey('HOD', $holders['roles']);
+        $this->assertSame(1, $holders['super_admins']);
+    }
+
+    public function test_holder_counts_cover_direct_grants_roles_and_inactive_users(): void
+    {
+        Role::findOrCreate('HOD', 'web');
+
+        // Holds the permission directly and through a role: counted once.
+        $both = User::factory()->create();
+        $both->assignRole('HOD');
+        $both->givePermissionTo('requisitions.approve');
+        Role::findByName('HOD')->givePermissionTo('requisitions.approve');
+
+        User::factory()->create()->assignRole('HOD');
+        User::factory()->create(['is_active' => false])->assignRole('HOD');
+
+        $holders = $this->page($this->admin(), route('admin.approvals.index'))
+            ->assertOk()->json('props.holders');
+
+        $this->assertSame(2, $holders['roles']['HOD']);
+        $this->assertSame(2, $holders['permissions']['requisitions.approve']);
+    }
+
+    /** A Super Admin holds every permission by gate bypass, not by assignment. */
+    public function test_super_admins_are_counted_separately_from_permission_holders(): void
+    {
+        User::factory()->create()->assignRole('Super Admin');
+
+        $holders = $this->page($this->admin(), route('admin.approvals.index'))
+            ->assertOk()->json('props.holders');
+
+        $this->assertSame(1, $holders['super_admins']);
+        $this->assertArrayNotHasKey('requisitions.approve', $holders['permissions']);
+    }
 }

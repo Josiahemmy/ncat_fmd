@@ -11,7 +11,7 @@ class SrvItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'srv_id', 'part_id', 'line_no', 'quantity', 'supplier_details', 'fol_no',
+        'srv_id', 'part_id', 'purchase_order_line_id', 'line_no', 'quantity', 'supplier_details', 'fol_no',
         'rate', 'amount', 'invoice_no', 'acct_code', 'batch_no', 'batch_year', 'expiry_date', 'serials',
     ];
 
@@ -34,5 +34,11 @@ class SrvItem extends Model
     public function part(): BelongsTo
     {
         return $this->belongsTo(Part::class);
+    }
+
+    /** The purchase order line this receipt counts against, when receiving against a PO. */
+    public function purchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class);
     }
 }

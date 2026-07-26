@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import {
-    AlertTriangle, ArrowDown, ArrowUp, GitBranch, Plus, Trash2,
+    AlertTriangle, ArrowDown, ArrowUp, GitBranch, Plus, Trash2, Users,
 } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { AdminNav } from '@/Components/admin/AdminNav';
@@ -22,7 +22,46 @@ const blankLevel = { id: null, name: '', binding_type: 'permission', binding_val
  * single atomic change and sequence numbers stay contiguous. Reordering uses
  * explicit up/down controls rather than drag so it stays keyboard-operable.
  */
-export default function ApprovalsIndex({ workflow, levels, permissions, roles, inFlight }) {
+/**
+ * How many active users a binding resolves to, and what to say about it.
+ *
+ * Super Admins clear a permission-bound level through the gate bypass without
+ * holding the permission, so they are added to a permission count and called
+ * out by name when they are the only ones left. A role binding is a literal
+ * role check, which Super Admins do not satisfy unless they hold that role.
+ */
+function resolveHolders(level, holders) {
+    if (!holders) return null;
+
+    const superAdmins = holders.super_admins ?? 0;
+
+    if (level.binding_type === 'role') {
+        const count = holders.roles?.[level.binding_value] ?? 0;
+        return {
+            count,
+            note: count === 0
+                ? 'No one can currently act on this level. Super Admins do not match role bindings, so they cannot step in either.'
+                : null,
+        };
+    }
+
+    const held = holders.permissions?.[level.binding_value] ?? 0;
+
+    if (held === 0 && superAdmins === 0) {
+        return { count: 0, note: 'No one can currently act on this level.' };
+    }
+
+    if (held === 0) {
+        return {
+            count: superAdmins,
+            note: `No one holds this permission. Only Super Admin${superAdmins === 1 ? '' : 's'} (${superAdmins}) can act on this level.`,
+        };
+    }
+
+    return { count: held + superAdmins, note: null };
+}
+
+export default function ApprovalsIndex({ workflow, levels, permissions, roles, inFlight, holders }) {
     const form = useForm({ levels: levels.length ? levels : [{ ...blankLevel, name: 'Approval' }] });
     const [dirty, setDirty] = useState(false);
 
@@ -96,7 +135,10 @@ export default function ApprovalsIndex({ workflow, levels, permissions, roles, i
                 <div className="relative space-y-3 pl-11">
                     <span aria-hidden className="absolute bottom-8 left-[1.1875rem] top-8 w-px bg-border" />
 
-                    {rows.map((level, i) => (
+                    {rows.map((level, i) => {
+                        const who = resolveHolders(level, holders);
+
+                        return (
                         <div key={level.id ?? `new-${i}`} className="relative">
                             <span className="absolute -left-11 top-5 flex size-9 items-center justify-center rounded-full border border-border bg-background font-display text-sm font-bold text-ncat-navy">
                                 {i + 1}
@@ -163,6 +205,31 @@ export default function ApprovalsIndex({ workflow, levels, permissions, roles, i
                                             </span>
                                             {!level.is_active && <Badge variant="neutral">Skipped</Badge>}
                                         </label>
+
+                                        {who && (
+                                            <div
+                                                data-testid={`level-holders-${i}`}
+                                                className={`flex gap-2 sm:col-span-2 rounded-md px-3 py-2 text-sm ${
+                                                    who.note
+                                                        ? 'border border-warning/40 bg-warning/10 text-ncat-navy'
+                                                        : 'text-muted-foreground'
+                                                }`}
+                                            >
+                                                {who.note
+                                                    ? <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[hsl(30_65%_30%)]" />
+                                                    : <Users className="mt-0.5 size-4 shrink-0" />}
+                                                <span>
+                                                    <strong className="font-semibold">
+                                                        {who.count} active user{who.count === 1 ? '' : 's'}
+                                                    </strong>{' '}
+                                                    match{who.count === 1 ? 'es' : ''} this binding.
+                                                    {who.note && <> {who.note}</>}
+                                                    {!who.note && who.count === 1 && (
+                                                        <> If they are away or leave, this level has nobody to fall back on.</>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex gap-1 sm:flex-col">
@@ -191,7 +258,8 @@ export default function ApprovalsIndex({ workflow, levels, permissions, roles, i
                                 </div>
                             </Card>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2 pl-11">

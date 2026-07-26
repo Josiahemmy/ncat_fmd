@@ -74,6 +74,17 @@ export default function SrvShow({ srv }) {
                         <span className="font-semibold uppercase">{srv.destination || '—'}</span> store and cross reference to
                         LPO / Petty Cash Voucher No.:{' '}
                         <span className="font-mono font-semibold">{srv.lpo_or_petty_cash_ref || '—'}</span>
+                        {srv.purchase_order && (
+                            <span className="mt-1 block print:hidden">
+                                Received against purchase order{' '}
+                                <Link
+                                    href={route('purchase-orders.show', srv.purchase_order.id)}
+                                    className="font-mono font-semibold text-primary hover:underline"
+                                >
+                                    {srv.purchase_order.po_number}
+                                </Link>
+                            </span>
+                        )}
                     </div>
 
                     {/* Head of receiving dept. */}

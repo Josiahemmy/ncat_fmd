@@ -3,6 +3,7 @@
 namespace App\Services\Demo;
 
 use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -32,8 +33,13 @@ class DemoPurger
         'stock_balances',
         'siv_items',
         'sivs',
+        // SRV items reference purchase order lines, so they go before the order.
         'srv_items',
         'srvs',
+        'repair_order_lines',
+        'repair_orders',
+        'purchase_order_lines',
+        'purchase_orders',
         'requisition_approvals',
         'requisitions',
         'work_orders',
@@ -43,7 +49,7 @@ class DemoPurger
     ];
 
     /** Reference tables that must survive a purge (for the verification report). */
-    public const PRESERVED = ['users', 'roles', 'permissions', 'aircraft', 'aircraft_types', 'ata_chapters', 'stores', 'document_counters', 'approval_workflows', 'approval_levels'];
+    public const PRESERVED = ['users', 'roles', 'permissions', 'aircraft', 'aircraft_types', 'ata_chapters', 'stores', 'document_counters', 'approval_workflows', 'approval_levels', 'vendors', 'app_settings'];
 
     public function __construct(protected DemoBackup $backup, protected DemoMode $demo)
     {
@@ -69,6 +75,11 @@ class DemoPurger
                     DB::table($table)->delete();
                 }
             });
+
+            // Vendors are reference data, so only the demo-flagged ones go, and
+            // they go with a force delete: a soft-deleted row would still be in
+            // the table and the guarantee is that nothing demo survives.
+            Vendor::withTrashed()->where('is_demo', true)->forceDelete();
 
             // Remove demo users (+ their role pivots) but never real accounts.
             User::query()->where('is_demo', true)->get()->each(function (User $user) {
@@ -111,11 +122,18 @@ class DemoPurger
             ->mapWithKeys(fn ($c) => [$c->series => ['next_number' => (int) $c->next_number, 'confirmed' => (bool) $c->confirmed]])
             ->all();
 
+        // Vendors survive a purge as reference data, so the guarantee for them
+        // is narrower: no demo-flagged row is left, soft-deleted or otherwise.
+        $demoVendors = Schema::hasTable('vendors')
+            ? (int) Vendor::withTrashed()->where('is_demo', true)->count()
+            : 0;
+
         return [
             'transactional' => $transactional,
             'preserved' => $preserved,
             'counters' => $counters,
-            'clean' => collect($transactional)->every(fn ($n) => $n === 0),
+            'demo_vendors' => $demoVendors,
+            'clean' => collect($transactional)->every(fn ($n) => $n === 0) && $demoVendors === 0,
         ];
     }
 }
