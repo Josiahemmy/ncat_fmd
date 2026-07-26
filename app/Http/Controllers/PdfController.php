@@ -23,10 +23,19 @@ use Illuminate\Support\Number;
  */
 class PdfController extends Controller
 {
-    /** Absolute path to the crest for dompdf (local file, no HTTP fetch). */
+    /**
+     * Absolute path to the crest for dompdf (local file, no HTTP fetch).
+     *
+     * The print crest, not the 1024px web logo. dompdf embeds the source
+     * bitmap at full resolution regardless of the height it is drawn at, so the
+     * 1024px file put roughly 1.2 MB into every voucher for a mark that prints
+     * 46px tall. These are emailed to vendors in Austria and England, so the
+     * weight lands on someone else's mailbox. 300px square is about 626 dpi at
+     * the printed size, comfortably past what A4 printing resolves.
+     */
     protected function crest(): string
     {
-        return public_path('brand/ncat-logo.png');
+        return public_path('brand/ncat-logo-print.png');
     }
 
     protected function render(string $view, array $data, string $filename)

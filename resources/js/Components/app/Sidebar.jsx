@@ -109,7 +109,10 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate }) {
                                                 />
                                                 {!collapsed && <span className="truncate">{item.label}</span>}
                                                 {!collapsed && count > 0 && (
-                                                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                                                    // Navy on the cyan chip, not white. Aviation Cyan is a light
+                                                    // fill, so white 11px numerals on it measured 2.05:1; navy on
+                                                    // the same fill measures 7.61:1 and keeps the chip cyan.
+                                                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-semibold text-ncat-navy">
                                                         {count}
                                                     </span>
                                                 )}
