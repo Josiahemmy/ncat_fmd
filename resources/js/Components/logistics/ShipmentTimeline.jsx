@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowUp, CheckCircle2, CircleDashed, Clock, User } from 'lucide-react';
+import { ArrowUp, CheckCircle2, CircleDashed, Clock, Download, FileImage, FileText, User } from 'lucide-react';
 
 /**
  * The shipment timeline. Newest at top, because the operational question is
@@ -145,6 +145,27 @@ export default function ShipmentTimeline({ events, shipment }) {
                                 <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ncat-graphite">
                                     {event.note}
                                 </p>
+                            )}
+
+                            {event.attachments?.length > 0 && (
+                                <ul className="mt-2 flex flex-wrap gap-2">
+                                    {event.attachments.map((file) => (
+                                        <li key={file.id}>
+                                            <a
+                                                href={file.url}
+                                                className="group inline-flex items-center gap-2 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs transition-colors hover:border-ncat-navy/40 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring/40"
+                                            >
+                                                {file.is_image
+                                                    ? <FileImage className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                    : <FileText className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                                                <span className="max-w-[16rem] truncate font-medium text-ncat-navy">{file.name}</span>
+                                                <span className="shrink-0 text-muted-foreground">{file.kind} · {file.size}</span>
+                                                <Download className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+                                                <span className="sr-only">Download {file.name}</span>
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
                             )}
 
                             <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">

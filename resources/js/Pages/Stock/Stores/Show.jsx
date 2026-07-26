@@ -23,6 +23,16 @@ import { usePermissions } from '@/lib/permissions';
 export default function StoreShow({ store, rows, filters, transferTargets }) {
     const { can } = usePermissions();
     const isQuarantine = store.type === 'quarantine';
+    const isLoanStore = store.type === 'loan_out' || store.type === 'loan_in';
+
+    // A system location holds stock the engine put there. Saying so is the
+    // point: without it the page reads as an ordinary store that has somehow
+    // lost its buttons.
+    const eyebrow = isQuarantine
+        ? 'Certification queue'
+        : isLoanStore
+            ? 'System location · loan register'
+            : 'Store';
     const [search, setSearch] = useState(filters.search || '');
     const [action, setAction] = useState(null); // { type, row }
 
@@ -40,7 +50,7 @@ export default function StoreShow({ store, rows, filters, transferTargets }) {
                 </Link>
             </div>
             <PageHeader
-                eyebrow={isQuarantine ? 'Certification queue' : 'Store'}
+                eyebrow={eyebrow}
                 title={store.name}
                 description={store.description}
                 icon={Warehouse}
@@ -115,7 +125,9 @@ export default function StoreShow({ store, rows, filters, transferTargets }) {
                                                 <BadgeCheck className="size-4" /> Certify
                                             </Button>
                                         )}
-                                        {!isQuarantine && can('stock.transfer') && (
+                                        {/* Transferring out of a loan store would move the stock
+                                            without the return that accounts for it. */}
+                                        {!store.is_system && can('stock.transfer') && (
                                             <Button variant="ghost" size="sm" onClick={() => setAction({ type: 'transfer', row: r })}>
                                                 <ArrowRightLeft className="size-4" /> Transfer
                                             </Button>

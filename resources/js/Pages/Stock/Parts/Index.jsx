@@ -45,15 +45,17 @@ export default function PartsIndex({ parts, stores, ataChapters, types, filters 
                         <Input className="pl-9" placeholder="Search part no / description…" defaultValue={f.search}
                             onKeyDown={(e) => e.key === 'Enter' && set('search', e.target.value)} />
                     </div>
-                    <Select value={f.ata} onChange={(e) => set('ata', e.target.value)}>
+                    {/* The visible cue for these is the selected option itself, so
+                        each needs a name of its own for anyone not seeing them. */}
+                    <Select aria-label="Filter by ATA chapter" value={f.ata} onChange={(e) => set('ata', e.target.value)}>
                         <option value="">All ATA</option>
                         {ataChapters.map((a) => <option key={a.id} value={a.id}>{a.chapter_number} - {a.title}</option>)}
                     </Select>
-                    <Select value={f.type} onChange={(e) => set('type', e.target.value)}>
+                    <Select aria-label="Filter by aircraft type" value={f.type} onChange={(e) => set('type', e.target.value)}>
                         <option value="">All types</option>
                         {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </Select>
-                    <Select value={f.state} onChange={(e) => set('state', e.target.value)}>
+                    <Select aria-label="Filter by stock state" value={f.state} onChange={(e) => set('state', e.target.value)}>
                         <option value="">Any state</option>
                         <option value="ok">OK</option>
                         <option value="below_reorder">Below reorder</option>
@@ -101,7 +103,10 @@ export default function PartsIndex({ parts, stores, ataChapters, types, filters 
                                 {canManage && (
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="sm" onClick={() => setEditing(p)}>
-                                            <Pencil className="size-4" />
+                                            <Pencil className="size-4" aria-hidden="true" />
+                                            {/* Icon-only control: name it, and name the row it acts on,
+                                                so the button is not announced as "button" thirty times. */}
+                                            <span className="sr-only">Edit {p.part_number}</span>
                                         </Button>
                                     </TableCell>
                                 )}

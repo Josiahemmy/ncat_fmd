@@ -6,6 +6,7 @@ import { PageHeader } from '@/Components/ui/PageHeader';
 import { Button } from '@/Components/ui/Button';
 import { Badge } from '@/Components/ui/Badge';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/Components/ui/Modal';
+import { ActionErrors } from '@/Components/ui/ActionErrors';
 import { usePermissions } from '@/lib/permissions';
 
 export default function SrvShow({ srv }) {
@@ -196,6 +197,7 @@ function PostModal({ srv, onClose }) {
         <Modal open onOpenChange={(o) => !o && onClose()}>
             <ModalContent className="max-w-md">
                 <ModalHeader><ModalTitle>Post SRV {srv.srv_number}</ModalTitle></ModalHeader>
+                <ActionErrors className="mb-3" />
                 <p className="text-sm text-muted-foreground">
                     Posting is irreversible and receives the stock into <span className="font-medium text-ncat-navy">{srv.destination}</span>. Continue?
                 </p>

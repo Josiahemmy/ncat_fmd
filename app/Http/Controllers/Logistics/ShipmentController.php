@@ -6,14 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\RepairOrder;
 use App\Models\Shipment;
+use App\Models\ShipmentEventAttachment;
 use App\Models\Vendor;
 use App\Services\Shipping\ShipmentService;
 use App\Services\Shipping\ShipmentSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Shipping (spec §12.6). Note what is missing: there is no update or destroy
@@ -106,6 +109,7 @@ class ShipmentController extends Controller
         $shipment->load([
             'vendor', 'source', 'createdBy:id,name',
             'events.recordedBy:id,name',
+            'events.attachments',
             'srvs:id,srv_number,srv_date,status,shipment_id',
         ]);
 
@@ -139,11 +143,47 @@ class ShipmentController extends Controller
             'event_date' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:2000'],
             'is_arrival' => ['nullable', 'boolean'],
+            'attachments' => ['nullable', 'array', 'max:10'],
+            // `mimetypes` checks the sniffed type, not the extension, so a
+            // renamed file is refused rather than stored and served back.
+            'attachments.*' => [
+                'file',
+                'mimetypes:'.implode(',', ShipmentEventAttachment::ALLOWED_MIME_TYPES),
+                'max:'.ShipmentEventAttachment::MAX_SIZE_KB,
+            ],
+        ], [
+            'attachments.*.mimetypes' => 'Attach a PDF, JPG, PNG or WEBP.',
+            'attachments.*.max' => 'Each file must be 5 MB or smaller.',
         ]);
 
-        $this->shipments->addEvent($shipment, $data, $request->user());
+        $this->shipments->addEvent(
+            $shipment,
+            $data,
+            $request->user(),
+            $request->file('attachments') ?? [],
+        );
 
         return back()->with('success', 'Event recorded.');
+    }
+
+    /**
+     * Serve an attachment. The file sits under `storage/app`, outside the
+     * document root, so this route is the only way to read one and the
+     * `shipping.view` gate on it is the whole access control.
+     */
+    public function downloadAttachment(ShipmentEventAttachment $attachment): StreamedResponse
+    {
+        abort_unless(
+            Storage::disk($attachment->disk)->exists($attachment->path),
+            404,
+            'That attachment is no longer on file.',
+        );
+
+        return Storage::disk($attachment->disk)->download(
+            $attachment->path,
+            $attachment->original_name,
+            ['Content-Type' => $attachment->mime_type],
+        );
     }
 
     public function close(Request $request, Shipment $shipment): RedirectResponse
@@ -207,6 +247,14 @@ class ShipmentController extends Controller
                 'is_arrival' => $e->is_arrival,
                 'recorded_by' => $e->recordedBy?->name ?? 'System',
                 'recorded_at' => $e->created_at?->toDayDateTimeString(),
+                'attachments' => $e->attachments->map(fn ($a) => [
+                    'id' => $a->id,
+                    'name' => $a->original_name,
+                    'kind' => $a->kind(),
+                    'size' => $a->readableSize(),
+                    'is_image' => $a->isImage(),
+                    'url' => route('shipments.attachments.download', $a->id),
+                ])->values(),
             ])->values(),
             'srvs' => $s->srvs->map(fn ($v) => [
                 'id' => $v->id,

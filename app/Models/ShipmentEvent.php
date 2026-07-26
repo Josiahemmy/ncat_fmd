@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One line of a shipment's history. Append-only, for the same reason the stock
@@ -54,6 +55,16 @@ class ShipmentEvent extends Model
     public function shipment(): BelongsTo
     {
         return $this->belongsTo(Shipment::class);
+    }
+
+    /**
+     * The paperwork this entry refers to. The event is immutable, but its
+     * attachments are not: a file can be attached to the wrong entry, and
+     * removing it does not change what the timeline says happened.
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ShipmentEventAttachment::class)->orderBy('id');
     }
 
     public function recordedBy(): BelongsTo

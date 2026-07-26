@@ -31,3 +31,4 @@ export { PageHeader } from './PageHeader';
 export { EmptyState } from './EmptyState';
 export { StatCard } from './StatCard';
 export { ToastProvider, useToast } from './Toast';
+export { ActionErrors } from './ActionErrors';

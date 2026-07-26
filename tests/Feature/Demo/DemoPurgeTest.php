@@ -12,6 +12,7 @@ use App\Services\Demo\DemoSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -177,5 +178,54 @@ class DemoPurgeTest extends TestCase
         $this->artisan('demo:seed')->assertSuccessful();
         $this->assertGreaterThan(0, DB::table('parts')->count());
         $this->assertTrue(app(DemoMode::class)->isActive());
+    }
+
+    /**
+     * The department is relying on the purge to zero everything before they
+     * start for real, so a table added by a later phase must not be able to
+     * slip past the list unnoticed. Every table has to be a deliberate choice:
+     * purged, preserved, framework infrastructure, or named here as an
+     * exception with a reason. Adding a table and running the suite should
+     * fail here until someone decides which it is.
+     */
+    public function test_every_table_is_deliberately_classified_by_the_purger(): void
+    {
+        $infrastructure = [
+            'migrations', 'password_reset_tokens', 'sessions', 'cache', 'cache_locks',
+            'jobs', 'job_batches', 'failed_jobs',
+            'model_has_roles', 'model_has_permissions', 'role_has_permissions',
+        ];
+
+        // Cleared by DemoMode::deactivate() inside the same transaction rather
+        // than by table truncation, so it is out of scope for both lists.
+        $handledElsewhere = ['demo_states'];
+
+        $classified = collect(DemoPurger::TRANSACTIONAL)
+            ->merge(DemoPurger::PRESERVED)
+            ->merge($infrastructure)
+            ->merge($handledElsewhere);
+
+        $unclassified = collect(Schema::getTableListing())
+            ->map(fn ($t) => str_contains($t, '.') ? substr($t, strrpos($t, '.') + 1) : $t)
+            ->reject(fn ($t) => str_starts_with($t, 'sqlite_'))
+            ->diff($classified)
+            ->values();
+
+        $this->assertSame([], $unclassified->all(), sprintf(
+            'These tables are neither purged nor preserved: %s. Add each to '
+            .'DemoPurger::TRANSACTIONAL or ::PRESERVED before shipping.',
+            $unclassified->implode(', '),
+        ));
+
+        // The report reads counts off the list, so a stale name would silently
+        // drop a table out of the zero-count guarantee.
+        $absent = collect(DemoPurger::TRANSACTIONAL)
+            ->reject(fn ($t) => Schema::hasTable($t))
+            ->values();
+
+        $this->assertSame([], $absent->all(), sprintf(
+            'DemoPurger lists tables that no longer exist: %s.',
+            $absent->implode(', '),
+        ));
     }
 }

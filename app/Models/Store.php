@@ -59,6 +59,19 @@ class Store extends Model
         return in_array($this->type, [self::LOAN_OUT, self::LOAN_IN], true);
     }
 
+    /**
+     * A location the engine posts through, not a room a clerk works in.
+     *
+     * Quarantine moves only on certification; the two loan stores move only on
+     * a loan or a return. Raising a requisition, an issue or a hand transfer
+     * against any of them would shift stock without the record that explains
+     * why it moved, so the store page offers none of those actions.
+     */
+    public function isSystemLocation(): bool
+    {
+        return $this->type === 'quarantine' || $this->isLoanStore();
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
