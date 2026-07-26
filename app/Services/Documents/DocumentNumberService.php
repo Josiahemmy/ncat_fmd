@@ -84,6 +84,20 @@ class DocumentNumberService
         );
     }
 
+    /**
+     * Reserve a shipment reference: SHP-{YY}-{serial}.
+     *
+     * A shipment has no draft state, so this is consumed at creation. The year
+     * token is the creation year; the serial keeps running across years rather
+     * than resetting, so a reference stays unique on its own.
+     */
+    public function reserveShipment(?CarbonInterface $at = null): string
+    {
+        $at ??= Carbon::now();
+
+        return sprintf('SHP-%s-%s', $at->format('y'), $this->counter('shipment')->reserve());
+    }
+
     /** Non-consuming preview of a plain series' next number. */
     public function peek(string $series): string
     {

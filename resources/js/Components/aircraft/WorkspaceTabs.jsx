@@ -84,7 +84,16 @@ export function WorkspaceTabs({ workOrders = [], requisitions = [], sivs = [], p
                                     {partsOnAircraft.map((p) => (
                                         <tr key={p.serial_id} className={rowClass}>
                                             <td className="px-3 py-3">
-                                                <p className="font-semibold text-ncat-navy">{p.part_number}</p>
+                                                <p className="flex flex-wrap items-center gap-2 font-semibold text-ncat-navy">
+                                                    {p.part_number}
+                                                    {/* Fitted here, but not NCAT's. The airframe view is
+                                                        where that has to be unmissable. */}
+                                                    {p.is_loaned && (
+                                                        <Badge variant="warning">
+                                                            Loaned{p.loaned_from ? ` from ${p.loaned_from}` : ' property'}
+                                                        </Badge>
+                                                    )}
+                                                </p>
                                                 <p className="text-xs text-muted-foreground">{p.description}</p>
                                             </td>
                                             <td className="px-3 py-3 font-mono text-xs">{p.serial_number}</td>

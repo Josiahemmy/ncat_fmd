@@ -48,6 +48,15 @@ return [
                 'orders.close' => 'Close or cancel purchase & repair orders',
             ],
         ],
+        'logistics' => [
+            'label' => 'Shipping & Loans',
+            'permissions' => [
+                'shipping.view' => 'View shipments',
+                'shipping.manage' => 'Create shipments and record events',
+                'loans.view' => 'View loans in and out',
+                'loans.manage' => 'Record loans and returns',
+            ],
+        ],
         'catalogue' => [
             'label' => 'Catalogue',
             'permissions' => [
@@ -97,6 +106,7 @@ return [
             'reports.view', 'aircraft.view', 'ata.view',
             'vendors.view', 'vendors.manage',
             'orders.view', 'orders.create', 'orders.edit', 'orders.close',
+            'shipping.view', 'shipping.manage', 'loans.view', 'loans.manage',
         ],
         'Storekeeper' => [
             'stores.view', 'stock.view',
@@ -104,6 +114,7 @@ return [
             'fuel.post', 'requisitions.view', 'work_orders.view',
             'parts.view', 'tally.view', 'aircraft.view', 'ata.view',
             'vendors.view', 'orders.view',
+            'shipping.view', 'shipping.manage', 'loans.view', 'loans.manage',
         ],
         'Engineer/Technician' => [
             'work_orders.view', 'work_orders.create',
@@ -114,7 +125,7 @@ return [
             'stores.view', 'stock.view', 'work_orders.view', 'requisitions.view',
             'receiving.view', 'issues.view', 'parts.view', 'tally.view',
             'reports.view', 'aircraft.view', 'ata.view',
-            'vendors.view', 'orders.view',
+            'vendors.view', 'orders.view', 'shipping.view', 'loans.view',
         ],
     ],
 ];

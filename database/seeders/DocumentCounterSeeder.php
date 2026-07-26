@@ -54,6 +54,14 @@ class DocumentCounterSeeder extends Seeder
                 'next_number' => 299, 'padding' => 0, 'confirmed' => false,
                 'notes' => 'Tail of NCAT/FMD/RO/TS/{MM}/{serial}. Sample 298, unpadded. Confirm with department.',
             ],
+            [
+                // The SHP- and year tokens are composed by DocumentNumberService,
+                // like the PO and RO refs, so the counter holds the serial only.
+                'series' => 'shipment', 'label' => 'Shipment Reference', 'prefix' => null,
+                'next_number' => 1, 'padding' => 4, 'confirmed' => true,
+                'notes' => 'Tail of SHP-{YY}-{serial}. New series with no paper predecessor, so it starts at 1 '
+                    .'and is confirmed on creation rather than waiting on the department.',
+            ],
         ];
 
         foreach ($counters as $counter) {

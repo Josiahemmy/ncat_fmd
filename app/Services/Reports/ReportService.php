@@ -20,7 +20,24 @@ class ReportService
         'expiry' => 'Expiry Report',
         'consumption' => 'Per-Aircraft Consumption',
         'quarantine' => 'Quarantine Aging',
+        'outstanding-loans' => 'Outstanding Loans',
+        'shipments-in-transit' => 'Shipments In Transit',
     ];
+
+    /**
+     * Reports that need a module permission on top of `reports.view`. Holding
+     * "view reports" should not become a side door into a module the user was
+     * deliberately not given.
+     */
+    public const EXTRA_PERMISSIONS = [
+        'outstanding-loans' => 'loans.view',
+        'shipments-in-transit' => 'shipping.view',
+    ];
+
+    public function permissionFor(string $key): ?string
+    {
+        return self::EXTRA_PERMISSIONS[$key] ?? null;
+    }
 
     public function titleFor(string $key): string
     {
@@ -41,6 +58,8 @@ class ReportService
             'expiry' => ['Part No.', 'Description', 'Batch', 'Year', 'Expiry', 'Days', 'Status'],
             'consumption' => ['Registration', 'Type', 'Issues', 'Qty Issued'],
             'quarantine' => ['Part No.', 'Description', 'Qty', 'Oldest Received', 'Days in Quarantine'],
+            'outstanding-loans' => ['Direction', 'Counterparty', 'Item', 'Serial', 'Qty', 'From Store', 'Started', 'Due', 'Days Overdue', 'Status'],
+            'shipments-in-transit' => ['Reference', 'Vendor', 'Source Order', 'Carrier', 'AWB', 'Latest Status', 'Last Event', 'Days Since Last Event', 'Expected', 'Days Overdue', 'Overdue'],
             default => [],
         };
     }
@@ -58,6 +77,8 @@ class ReportService
             'expiry' => $this->expiry($filters),
             'consumption' => $this->consumption($filters),
             'quarantine' => $this->quarantine($filters),
+            'outstanding-loans' => $this->outstandingLoans($filters),
+            'shipments-in-transit' => $this->shipmentsInTransit($filters),
             default => LazyCollection::make([]),
         };
     }
@@ -68,6 +89,9 @@ class ReportService
             ->join('parts', 'parts.id', '=', 'stock_balances.part_id')
             ->join('stores', 'stores.id', '=', 'stock_balances.store_id')
             ->whereNull('parts.deleted_at')
+            // Stock summary reports what NCAT holds of its own. Borrowed stock
+            // has its own report (outstanding-loans) and never lands here.
+            ->where('stores.owned', true)
             ->when($f['store'] ?? null, fn ($q, $v) => $q->where('stores.id', $v))
             ->when($f['search'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w
                 ->where('parts.part_number', 'like', "%{$v}%")->orWhere('parts.description', 'like', "%{$v}%")))
@@ -193,6 +217,106 @@ class ReportService
             'Issues' => (int) $r->issues,
             'Qty Issued' => (float) $r->qty,
         ]);
+    }
+
+    /**
+     * Loans still out in either direction, with days overdue (spec §12.7).
+     * Overdue is computed from due_date at read time, so the report cannot
+     * disagree with the screens.
+     */
+    protected function outstandingLoans(array $f): LazyCollection
+    {
+        $q = DB::table('loans')
+            ->leftJoin('vendors', 'vendors.id', '=', 'loans.vendor_id')
+            ->leftJoin('parts', 'parts.id', '=', 'loans.part_id')
+            ->leftJoin('part_serials', 'part_serials.id', '=', 'loans.part_serial_id')
+            ->leftJoin('stores', 'stores.id', '=', 'loans.from_store_id')
+            ->when($f['direction'] ?? null, fn ($q, $v) => $q->where('loans.direction', $v))
+            ->when(($f['scope'] ?? 'open') === 'open', fn ($q) => $q->where('loans.status', 'on_loan'))
+            ->when(($f['scope'] ?? null) === 'overdue', fn ($q) => $q->where('loans.status', 'on_loan')
+                ->whereNotNull('loans.due_date')->whereDate('loans.due_date', '<', today()))
+            ->when($f['from'] ?? null, fn ($q, $v) => $q->whereDate('loans.started_at', '>=', $v))
+            ->when($f['to'] ?? null, fn ($q, $v) => $q->whereDate('loans.started_at', '<=', $v))
+            ->orderBy('loans.due_date')->orderBy('loans.id')
+            ->select('loans.direction', 'loans.party_name', 'loans.item_description', 'loans.serial_text',
+                'loans.quantity', 'loans.started_at', 'loans.due_date', 'loans.status',
+                'vendors.name as vendor', 'parts.part_number', 'parts.description as part_description',
+                'part_serials.serial_number', 'stores.name as from_store');
+
+        return $q->cursor()->map(function ($r) {
+            $overdue = $r->status === 'on_loan' && $r->due_date !== null
+                && \Illuminate\Support\Carbon::parse($r->due_date)->startOfDay()->lt(today());
+
+            return [
+                'Direction' => $r->direction === 'out' ? 'Out (lent by NCAT)' : 'In (borrowed by NCAT)',
+                'Counterparty' => $r->vendor ?? $r->party_name,
+                'Item' => $r->part_number
+                    ? trim($r->part_number.' - '.($r->part_description ?? ''), ' -')
+                    : $r->item_description,
+                'Serial' => $r->serial_number ?? $r->serial_text,
+                'Qty' => (float) $r->quantity,
+                'From Store' => $r->from_store,
+                'Started' => $r->started_at ? substr($r->started_at, 0, 10) : null,
+                'Due' => $r->due_date ? substr($r->due_date, 0, 10) : null,
+                'Days Overdue' => $overdue
+                    ? (int) round(\Illuminate\Support\Carbon::parse($r->due_date)->startOfDay()->diffInDays(today()))
+                    : 0,
+                'Status' => $overdue ? 'overdue' : $r->status,
+            ];
+        });
+    }
+
+    /**
+     * Consignments still on their way, with how long they have been silent
+     * (spec §12.6). A shipment that has not moved in weeks is the thing this
+     * report exists to surface, so days-since-last-event sits next to overdue.
+     */
+    protected function shipmentsInTransit(array $f): LazyCollection
+    {
+        $q = DB::table('shipments')
+            ->leftJoin('vendors', 'vendors.id', '=', 'shipments.vendor_id')
+            ->leftJoin('purchase_orders', function ($j) {
+                $j->on('purchase_orders.id', '=', 'shipments.source_id')
+                    ->where('shipments.source_type', '=', \App\Models\PurchaseOrder::class);
+            })
+            ->leftJoin('repair_orders', function ($j) {
+                $j->on('repair_orders.id', '=', 'shipments.source_id')
+                    ->where('shipments.source_type', '=', \App\Models\RepairOrder::class);
+            })
+            ->whereNull('shipments.closed_at')
+            ->when(($f['scope'] ?? 'in_transit') === 'in_transit', fn ($q) => $q->whereNull('shipments.arrived_at'))
+            ->when(($f['scope'] ?? null) === 'overdue', fn ($q) => $q->whereNull('shipments.arrived_at')
+                ->whereNotNull('shipments.expected_arrival_date')
+                ->whereDate('shipments.expected_arrival_date', '<', today()))
+            ->when($f['vendor'] ?? null, fn ($q, $v) => $q->where('shipments.vendor_id', $v))
+            ->orderBy('shipments.expected_arrival_date')->orderBy('shipments.id')
+            ->select('shipments.reference', 'shipments.carrier', 'shipments.awb_reference',
+                'shipments.current_status', 'shipments.current_status_date',
+                'shipments.expected_arrival_date', 'shipments.arrived_at',
+                'vendors.name as vendor', 'purchase_orders.po_number', 'repair_orders.ro_number');
+
+        return $q->cursor()->map(function ($r) {
+            $overdue = $r->arrived_at === null && $r->expected_arrival_date !== null
+                && \Illuminate\Support\Carbon::parse($r->expected_arrival_date)->startOfDay()->lt(today());
+
+            return [
+                'Reference' => $r->reference,
+                'Vendor' => $r->vendor,
+                'Source Order' => $r->po_number ?? $r->ro_number,
+                'Carrier' => $r->carrier,
+                'AWB' => $r->awb_reference,
+                'Latest Status' => $r->current_status,
+                'Last Event' => $r->current_status_date ? substr($r->current_status_date, 0, 10) : null,
+                'Days Since Last Event' => $r->current_status_date
+                    ? (int) round(\Illuminate\Support\Carbon::parse($r->current_status_date)->startOfDay()->diffInDays(today()))
+                    : null,
+                'Expected' => $r->expected_arrival_date ? substr($r->expected_arrival_date, 0, 10) : null,
+                'Days Overdue' => $overdue
+                    ? (int) round(\Illuminate\Support\Carbon::parse($r->expected_arrival_date)->startOfDay()->diffInDays(today()))
+                    : 0,
+                'Overdue' => $overdue ? 'yes' : 'no',
+            ];
+        });
     }
 
     protected function quarantine(array $f): LazyCollection

@@ -2,11 +2,14 @@
 
 namespace App\Services\Dashboard;
 
+use App\Models\Loan;
 use App\Models\Part;
 use App\Models\Requisition;
+use App\Models\Shipment;
 use App\Models\StockBalance;
 use App\Models\WorkOrder;
 use App\Services\Documents\ApprovalService;
+use App\Services\Shipping\ShipmentService;
 use App\Services\Stock\StockAlertService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -42,6 +45,8 @@ class DashboardService
         'requisition' => 'requisitions.view',
         'srv' => 'receiving.view',
         'siv' => 'issues.view',
+        'shipment' => 'shipping.view',
+        'loan' => 'loans.view',
         'user' => 'users.view',
         'role' => 'roles.view',
     ];
@@ -127,6 +132,15 @@ class DashboardService
                     'label' => $w->wo_ref.' - '.$w->title,
                     'href' => route('work-orders.show', $w->id),
                 ])->values()->all(),
+            'shipments_overdue' => app(ShipmentService::class)->overdue()->take($per)->map(fn ($s) => [
+                'label' => $s->reference.' - '.($s->vendor?->name ?? 'Vendor').', '.$s->daysOverdue().'d overdue',
+                'href' => route('shipments.show', $s->id),
+            ])->values()->all(),
+            'loans_overdue' => Loan::overdue()->with(['vendor:id,name', 'part:id,part_number,description'])
+                ->orderBy('due_date')->limit($per)->get()->map(fn ($l) => [
+                    'label' => $l->counterparty().' - '.$l->itemLabel().', '.$l->daysOverdue().'d overdue',
+                    'href' => route('loans.show', $l->id),
+                ])->values()->all(),
         ];
     }
 
@@ -152,6 +166,12 @@ class DashboardService
                 ->count(),
             'requisitions_pending' => Requisition::where('status', 'submitted')->count(),
             'open_work_orders' => WorkOrder::whereIn('status', self::OPEN_WO_STATUSES)->count(),
+            'shipments_overdue' => Shipment::query()
+                ->whereNull('arrived_at')->whereNull('closed_at')
+                ->whereNotNull('expected_arrival_date')
+                ->whereDate('expected_arrival_date', '<', today())
+                ->count(),
+            'loans_overdue' => Loan::overdue()->count(),
         ];
     }
 
@@ -183,6 +203,10 @@ class DashboardService
                 'route' => 'requisitions.index', 'params' => ['status' => 'submitted']],
             ['key' => 'open_work_orders', 'label' => 'Open Work Orders', 'tone' => 'brand', 'permission' => 'work_orders.view',
                 'route' => 'work-orders.index', 'params' => ['status' => 'open']],
+            ['key' => 'shipments_overdue', 'label' => 'Overdue Shipments', 'tone' => 'warning', 'permission' => 'shipping.view',
+                'route' => 'shipments.index', 'params' => ['state' => 'overdue']],
+            ['key' => 'loans_overdue', 'label' => 'Overdue Loans', 'tone' => 'destructive', 'permission' => 'loans.view',
+                'route' => 'loans.index', 'params' => ['status' => 'overdue']],
         ];
 
         return collect($cards)
@@ -209,9 +233,12 @@ class DashboardService
     public function kpis(): array
     {
         // Total value of on-hand stock where a unit price is known, excluding
-        // fuel (fuel is reported in litres, not naira).
+        // fuel (fuel is reported in litres, not naira) and excluding stores
+        // NCAT does not own: borrowed stock is not an NCAT asset (spec §12.7).
         $stockValue = (float) StockBalance::query()
             ->join('parts', 'parts.id', '=', 'stock_balances.part_id')
+            ->join('stores', 'stores.id', '=', 'stock_balances.store_id')
+            ->where('stores.owned', true)
             ->whereNull('parts.deleted_at')
             ->whereNotNull('parts.unit_price')
             ->where('parts.is_fuel', false)
@@ -219,6 +246,8 @@ class DashboardService
 
         $fuelLitres = (float) StockBalance::query()
             ->join('parts', 'parts.id', '=', 'stock_balances.part_id')
+            ->join('stores', 'stores.id', '=', 'stock_balances.store_id')
+            ->where('stores.owned', true)
             ->whereNull('parts.deleted_at')
             ->where('parts.is_fuel', true)
             ->sum('stock_balances.quantity');

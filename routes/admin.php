@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ApprovalWorkflowController;
 use App\Http\Controllers\Admin\AtaChapterController;
 use App\Http\Controllers\Admin\DocumentCounterController;
 use App\Http\Controllers\Admin\OrderSettingsController;
+use App\Http\Controllers\Admin\ShipmentStatusController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\StoreController;
 use App\Http\Controllers\Admin\UserController;
@@ -92,6 +93,13 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::middleware('can:orders.edit')->group(function () {
         Route::get('order-documents', [OrderSettingsController::class, 'edit'])->name('order-documents.edit');
         Route::put('order-documents', [OrderSettingsController::class, 'update'])->name('order-documents.update');
+    });
+
+    // The statuses the shipment timeline suggests. Suggestions only: the event
+    // form always accepts free text.
+    Route::middleware('can:shipping.manage')->group(function () {
+        Route::get('shipment-statuses', [ShipmentStatusController::class, 'edit'])->name('shipment-statuses.edit');
+        Route::put('shipment-statuses', [ShipmentStatusController::class, 'update'])->name('shipment-statuses.update');
     });
 
     // Activity log

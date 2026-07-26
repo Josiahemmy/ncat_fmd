@@ -23,10 +23,15 @@ class ReferenceAndAuthTest extends TestCase
 
         $this->assertSame(6, AircraftType::count());
         $this->assertSame(26, Aircraft::count());
-        $this->assertSame(4, Store::count());
+        // Four physical stores, plus the two loan holding locations the loan
+        // engine posts through (Phase 8).
+        $this->assertSame(6, Store::count());
+        $this->assertSame(4, Store::whereIn('type', ['quarantine', 'bonded', 'dope', 'fuel'])->count());
+        // Borrowed stock is the only stock NCAT holds without owning it.
+        $this->assertSame(['loan_in'], Store::where('owned', false)->pluck('type')->all());
         $this->assertGreaterThanOrEqual(40, AtaChapter::count());
-        // work_order, requisition, srv, siv, purchase_order, repair_order
-        $this->assertSame(6, DocumentCounter::count());
+        // work_order, requisition, srv, siv, purchase_order, repair_order, shipment
+        $this->assertSame(7, DocumentCounter::count());
     }
 
     public function test_stores_have_the_correct_types(): void
@@ -58,7 +63,7 @@ class ReferenceAndAuthTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertSame(26, Aircraft::count());
-        $this->assertSame(4, Store::count());
+        $this->assertSame(6, Store::count());
         $this->assertSame(1, User::where('email', 'superadmin@ncatfmd.com.ng')->count());
     }
 

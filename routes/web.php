@@ -50,5 +50,6 @@ require __DIR__.'/aircraft.php';
 require __DIR__.'/stock.php';
 require __DIR__.'/documents.php';
 require __DIR__.'/orders.php';
+require __DIR__.'/logistics.php';
 require __DIR__.'/admin.php';
 require __DIR__.'/auth.php';

@@ -31,11 +31,16 @@ class DemoPurger
         'activity_log',
         'stock_movements',
         'stock_balances',
+        // Loans reference parts and serials, and nothing references loans.
+        'loans',
         'siv_items',
         'sivs',
         // SRV items reference purchase order lines, so they go before the order.
         'srv_items',
+        // SRVs reference shipments, so they go before the shipment.
         'srvs',
+        'shipment_events',
+        'shipments',
         'repair_order_lines',
         'repair_orders',
         'purchase_order_lines',

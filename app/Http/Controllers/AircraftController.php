@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Aircraft;
 use App\Models\AircraftType;
+use App\Models\Loan;
 use App\Models\PartSerial;
 use App\Models\Requisition;
 use App\Models\Siv;
@@ -123,6 +124,16 @@ class AircraftController extends Controller
             ->groupBy('part_serial_id')
             ->pluck('installed_at', 'part_serial_id');
 
+        // Borrowed units fitted to this airframe. They are legitimately here and
+        // legitimately not NCAT's, so the view names both facts rather than
+        // quietly listing them as fleet property.
+        $loanedParties = Loan::query()
+            ->inbound()->open()
+            ->where('installed_aircraft_id', $aircraft->id)
+            ->with('vendor:id,name')
+            ->get()
+            ->mapWithKeys(fn (Loan $l) => [$l->part_serial_id => $l->counterparty()]);
+
         return $serials->map(fn (PartSerial $s) => [
             'serial_id' => $s->id,
             'part_id' => $s->part_id,
@@ -130,6 +141,8 @@ class AircraftController extends Controller
             'description' => $s->part?->description,
             'serial_number' => $s->serial_number,
             'position' => $s->position,
+            'is_loaned' => $s->isLoanedProperty(),
+            'loaned_from' => $loanedParties[$s->id] ?? null,
             'installed_at' => optional(
                 isset($installedAt[$s->id]) ? \Illuminate\Support\Carbon::parse($installedAt[$s->id]) : $s->updated_at
             )->toDateString(),

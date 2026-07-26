@@ -96,10 +96,57 @@ numbers that break the audit trail._
   - Requisition → **1002**
   - SIV → **0294**
   - SRV → **0202**
+  - Purchase Order → **308** (paper sample was NCAT/FMD/PO/TS/30/6/**307**)
+  - Repair Order → **299** (paper sample was NCAT/FMD/RO/TS/03/**298**)
+- [ ] **Confirm the PO and RO next numbers specifically.** Both were read off a
+      single sample form each, so they are the least-corroborated values in the
+      list. Ask Stores for the most recent order raised on paper in each series.
 - [ ] Go to **Administration → Document counters** (`/admin/counters`).
 - [ ] Set each counter's next value to the department-confirmed number and save.
 - [ ] (Counters seed as provisional/unconfirmed; saving here marks them
       confirmed.)
+- [ ] **Shipment** starts at **SHP-{YY}-0001** and needs no confirmation: it is a
+      new series with no paper predecessor, so it ships confirmed.
+
+---
+
+## Phase 4a — Confirm the order-document letterhead and contacts
+
+_Why: these blocks print on every Purchase and Repair Order sent to a vendor. A
+wrong name or address goes out on NCAT letterhead._
+
+- [ ] Go to **Administration → Order documents** (`/admin/order-documents`).
+- [ ] Confirm the two named contacts against the department's current staff.
+      Transcribed from the sample forms as:
+  - **IBRAHIM M. HIRSE** — hquality@ncat.gov.ng
+  - **GAMMANIEL M. DANBATURE** — hfmd@ncat.gov.ng
+- [ ] **Confirm the letterhead email addresses.** The first line was transcribed
+      verbatim from the paper as `rector@ncat.ng.info@ncat.gov.ng`, which reads
+      as two addresses run together, that is, a typo on the printed form. It was
+      reproduced as printed rather than silently corrected. Get the department to
+      state the correct address and enter it here.
+- [ ] Confirm the prepared-by lines. The two forms do not agree with each other:
+      the Purchase Order signs off "Head, Materials and Stores." and the Repair
+      Order signs off "Materials and Stores." Both are reproduced as printed and
+      are separately editable, so the department can settle it here.
+- [ ] Confirm the NOTE paragraph on each form.
+
+---
+
+## Phase 4b — Confirm the suggested shipment statuses
+
+_Why: the list drives the shipment timeline's status picker, and one entry on it
+is what marks a consignment as having arrived at NCAT._
+
+- [ ] Go to **Administration → Shipment statuses** (`/admin/shipment-statuses`).
+- [ ] Review the seeded list against how the department actually describes a
+      consignment's progress: Shipped, Arrived at local port, Cleared customs,
+      Picked up by local courier, In transit to NCAT, Arrived at NCAT.
+- [ ] Add, remove or reorder to match. Free text is always accepted on the event
+      form, so this list is a convenience, not a constraint.
+- [ ] Confirm the **arrival status** selection. It pre-ticks the "arrived at
+      NCAT" box on the event form. The tick on the event itself is what closes
+      the shipment, so renaming the label is safe.
 
 ---
 
@@ -112,13 +159,35 @@ duties (the receiver must not be the certifier)._
 - [ ] Go to **Administration → Roles & permissions** (`/admin/roles`).
 - [ ] Review each starter role against the department's intent:
   - [ ] **Stores Officer** — certifies quarantine, approves requisitions, posts
-        SIV, transfers/adjusts stock, posts fuel, manages parts.
-  - [ ] **Storekeeper** — posts SRV and SIV, posts fuel; **must NOT** hold
-        `quarantine.certify` (segregation of duties).
+        SIV, transfers/adjusts stock, posts fuel, manages parts and vendors,
+        raises and issues orders, tracks shipments and loans.
+  - [ ] **Storekeeper** — posts SRV and SIV, posts fuel, tracks shipments and
+        loans; **must NOT** hold `quarantine.certify` (segregation of duties).
   - [ ] **Engineer/Technician** — raises Work Orders and Requisitions only.
   - [ ] **Viewer** — read-only.
   - [ ] **Super Admin** — leave as-is (bypasses all checks).
+- [ ] **Grant `approvals.manage` to whoever owns process configuration**, and to
+      nobody else. It controls who can sign off requisitions, so it belongs with
+      the person accountable for the process, not with every approver.
+- [ ] **Check `stock.adjust` before anyone starts lending stock out.** Writing
+      off an unreturned loan posts a real ledger adjustment and is gated on
+      `stock.adjust`, not on `loans.manage`. Confirm the right people hold it.
 - [ ] Create any additional real roles the department needs.
+
+---
+
+## Phase 5a — Configure the approval workflow
+
+_Why: a level bound to a role with no active users blocks requisition approvals
+outright, and the Super Admin cannot step in on a role binding._
+
+- [ ] Go to **Administration → Approval workflow** (`/admin/approval-workflow`).
+- [ ] Confirm the ordered levels match the department's real sign-off sequence.
+- [ ] For each level, confirm the binding resolves to at least one **active**
+      user. The screen flags empty bindings and single-user bindings; do not go
+      live with either unresolved.
+- [ ] Do this **after** Phase 6 (real users created), then come back and confirm
+      the counts again.
 
 ---
 

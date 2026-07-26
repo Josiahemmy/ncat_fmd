@@ -38,6 +38,7 @@ class StockService
         string $movementType,
         ?User $user = null,
         array $attributes = [],
+        ?string $serialStatus = null,
     ): StockMovement {
         if ($quantity <= 0) {
             throw new \App\Exceptions\Stock\StockException('Movement quantity must be positive.');
@@ -49,7 +50,7 @@ class StockService
             throw new \App\Exceptions\Stock\StockException('Serialized parts move one serial at a time (quantity must be 1).');
         }
 
-        return DB::transaction(function () use ($part, $store, $direction, $quantity, $movementType, $user, $attributes, $serialId) {
+        return DB::transaction(function () use ($part, $store, $direction, $quantity, $movementType, $user, $attributes, $serialId, $serialStatus) {
             // Ensure the balance row exists, then lock it for the rest of the tx.
             StockBalance::firstOrCreate(
                 ['part_id' => $part->id, 'store_id' => $store->id],
@@ -83,10 +84,13 @@ class StockService
             $balance->update(['quantity' => $newBalance]);
 
             // Keep the serial's single location/state in sync (invariant c).
+            // `serialStatus` lets a caller land the serial in a state other than
+            // "in store". A loaned-out unit is in NCAT's books but is not on a
+            // shelf, and must not read as though it were.
             if ($serialId !== null) {
                 $serial = PartSerial::find($serialId);
                 $serial?->update($direction === 'in'
-                    ? ['current_store_id' => $store->id, 'status' => 'in_store']
+                    ? ['current_store_id' => $store->id, 'status' => $serialStatus ?? 'in_store']
                     : ['current_store_id' => null]);
             }
 
@@ -230,6 +234,13 @@ class StockService
                 'Quarantined stock can only be moved via certification, not a direct transfer.',
             );
         }
+        // The loan stores are written by the loan actions alone. Allowing a hand
+        // transfer in or out would put stock there with no loan record behind it.
+        if ($from->isLoanStore() || $to->isLoanStore()) {
+            throw new \App\Exceptions\Stock\StockException(
+                'Loan holding locations are moved by the loan actions, not by a direct transfer.',
+            );
+        }
 
         return $this->pairedMove($part, $from, $to, $quantity, 'transfer', $user, [
             'part_batch_id' => $batchId,
@@ -305,6 +316,113 @@ class StockService
         );
     }
 
+    /**
+     * Lend NCAT stock to an external party (spec §12.7). A paired move out of
+     * the issuing store and into "On Loan (Out)": the units are still NCAT
+     * property, so they stay in the ledger, they are simply somewhere else.
+     * The issuing store's balance drops exactly as it would on an issue.
+     *
+     * @return array{0: StockMovement, 1: StockMovement}
+     */
+    public function loanOut(
+        Part $part,
+        Store $from,
+        float $quantity,
+        ?User $user = null,
+        ?int $batchId = null,
+        ?int $serialId = null,
+        ?object $source = null,
+        ?string $remarks = null,
+    ): array {
+        // Same rule as issuing: nothing leaves Quarantine or the Fuel Dump.
+        $this->assertIssuable($from);
+
+        return $this->pairedMove($part, $from, $this->loanOutStore(), $quantity, 'loan_out', $user,
+            $this->sourceAttributes($source) + [
+                'part_batch_id' => $batchId,
+                'part_serial_id' => $serialId,
+                'remarks' => $remarks,
+            ],
+            serialStatus: 'on_loan',
+        );
+    }
+
+    /**
+     * Bring a lent-out unit back into the store it left. The originating store
+     * is passed by the caller from the loan record rather than chosen at return
+     * time, so a loan cannot come back to the wrong shelf.
+     *
+     * @return array{0: StockMovement, 1: StockMovement}
+     */
+    public function loanReturn(
+        Part $part,
+        Store $to,
+        float $quantity,
+        ?User $user = null,
+        ?int $batchId = null,
+        ?int $serialId = null,
+        ?object $source = null,
+        ?string $remarks = null,
+    ): array {
+        return $this->pairedMove($part, $this->loanOutStore(), $to, $quantity, 'loan_return', $user,
+            $this->sourceAttributes($source) + [
+                'part_batch_id' => $batchId,
+                'part_serial_id' => $serialId,
+                'remarks' => $remarks,
+            ],
+        );
+    }
+
+    /**
+     * Take custody of another organisation's stock. It lands in "Loaned In",
+     * a store flagged `owned = false`, so it is tracked and issuable but is
+     * excluded from every query that reports what NCAT owns.
+     */
+    public function loanIn(
+        Part $part,
+        float $quantity,
+        ?User $user = null,
+        ?int $serialId = null,
+        ?object $source = null,
+        ?string $remarks = null,
+    ): StockMovement {
+        return $this->post(
+            part: $part,
+            store: $this->loanInStore(),
+            direction: 'in',
+            quantity: $quantity,
+            movementType: 'loan_in',
+            user: $user,
+            attributes: $this->sourceAttributes($source) + [
+                'part_serial_id' => $serialId,
+                'remarks' => $remarks,
+            ],
+        );
+    }
+
+    /** Hand borrowed stock back to its owner: out of "Loaned In", not to a store. */
+    public function loanInReturn(
+        Part $part,
+        float $quantity,
+        ?User $user = null,
+        ?int $serialId = null,
+        ?object $source = null,
+        ?string $remarks = null,
+    ): StockMovement {
+        return $this->post(
+            part: $part,
+            store: $this->loanInStore(),
+            direction: 'out',
+            quantity: $quantity,
+            movementType: 'loan_in_return',
+            user: $user,
+            attributes: $this->sourceAttributes($source) + [
+                'part_serial_id' => $serialId,
+                'remarks' => $remarks,
+            ],
+        );
+    }
+
     /** Receive fuel into the Fuel Dump (litres). No certification step. */
     public function fuelReceive(
         Part $part,
@@ -369,6 +487,16 @@ class StockService
         return Store::where('type', 'fuel')->firstOrFail();
     }
 
+    protected function loanOutStore(): Store
+    {
+        return Store::where('type', Store::LOAN_OUT)->firstOrFail();
+    }
+
+    protected function loanInStore(): Store
+    {
+        return Store::where('type', Store::LOAN_IN)->firstOrFail();
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      * @return array{0: StockMovement, 1: StockMovement}
@@ -381,8 +509,9 @@ class StockService
         string $movementType,
         ?User $user,
         array $attributes = [],
+        ?string $serialStatus = null,
     ): array {
-        return DB::transaction(function () use ($part, $from, $to, $quantity, $movementType, $user, $attributes) {
+        return DB::transaction(function () use ($part, $from, $to, $quantity, $movementType, $user, $attributes, $serialStatus) {
             $group = (string) Str::uuid();
 
             $out = $this->post(
@@ -390,10 +519,13 @@ class StockService
                 movementType: $movementType, user: $user,
                 attributes: $attributes + ['transfer_group' => $group],
             );
+            // The IN leg lands second and is what sets the serial's resting
+            // state, so the status override belongs here.
             $in = $this->post(
                 part: $part, store: $to, direction: 'in', quantity: $quantity,
                 movementType: $movementType, user: $user,
                 attributes: $attributes + ['transfer_group' => $group],
+                serialStatus: $serialStatus,
             );
 
             return [$out, $in];
@@ -409,6 +541,13 @@ class StockService
         }
         if ($store->type === 'fuel') {
             throw new \App\Exceptions\Stock\StockException('Use the fuel issue action for the Fuel Dump.');
+        }
+        // "On Loan (Out)" is a holding location, not a shelf. Stock leaves it by
+        // being returned or written off, never by being issued to someone else.
+        if ($store->type === Store::LOAN_OUT) {
+            throw new \App\Exceptions\Stock\StockException(
+                'Stock on loan is not issuable. Record its return first.',
+            );
         }
     }
 

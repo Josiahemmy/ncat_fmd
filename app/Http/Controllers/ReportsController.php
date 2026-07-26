@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AircraftType;
 use App\Models\Store;
+use App\Models\Vendor;
 use App\Services\Reports\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -28,19 +29,22 @@ class ReportsController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
         return Inertia::render('Reports/Index', [
-            'reports' => collect(ReportService::REPORTS)->map(fn ($title, $key) => [
-                'key' => $key,
-                'title' => $title,
-            ])->values(),
+            'reports' => collect(ReportService::REPORTS)
+                ->filter(fn ($title, $key) => $this->permitted($request, $key))
+                ->map(fn ($title, $key) => [
+                    'key' => $key,
+                    'title' => $title,
+                ])->values(),
         ]);
     }
 
     public function show(Request $request, string $report)
     {
         abort_unless($this->reports->exists($report), 404);
+        abort_unless($this->permitted($request, $report), 403);
 
         $filters = $this->filters($request);
         $rows = $this->reports->rows($report, $filters);
@@ -59,6 +63,7 @@ class ReportsController extends Controller
     public function export(Request $request, string $report)
     {
         abort_unless($this->reports->exists($report), 404);
+        abort_unless($this->permitted($request, $report), 403);
 
         $filters = $this->filters($request);
         $format = $request->string('format')->toString() ?: 'csv';
@@ -113,7 +118,17 @@ class ReportsController extends Controller
             'scope' => $request->string('scope')->toString() ?: null,
             'days' => $request->integer('days') ?: null,
             'search' => $request->string('search')->toString() ?: null,
+            'direction' => $request->string('direction')->toString() ?: null,
+            'vendor' => $request->integer('vendor') ?: null,
         ];
+    }
+
+    /** `reports.view` plus, for some reports, the module's own view permission. */
+    protected function permitted(Request $request, string $report): bool
+    {
+        $extra = $this->reports->permissionFor($report);
+
+        return $extra === null || (bool) $request->user()?->can($extra);
     }
 
     /** Filter dropdown sources for the report screens. */
@@ -122,7 +137,8 @@ class ReportsController extends Controller
         return [
             'stores' => Store::orderBy('sort_order')->get(['id', 'name']),
             'types' => AircraftType::orderBy('sort_order')->get(['id', 'name']),
-            'movementTypes' => ['opening_balance', 'receiving', 'certification_transfer', 'transfer', 'issue', 'fuel_receive', 'fuel_issue', 'adjustment', 'return'],
+            'vendors' => Vendor::orderBy('name')->get(['id', 'name']),
+            'movementTypes' => ['opening_balance', 'receiving', 'certification_transfer', 'transfer', 'issue', 'fuel_receive', 'fuel_issue', 'adjustment', 'return', 'loan_out', 'loan_return', 'loan_in', 'loan_in_return'],
         ];
     }
 }
