@@ -482,6 +482,34 @@ for the same reason a stock movement cannot: the record of what was believed,
 and when, is evidence. To correct a mistake, record another event saying what
 changed. There is no route in the system that could do otherwise.
 
+> **Date a correction today, not the day the thing really happened.**
+>
+> The status shown on the Shipping list is taken from whichever entry has the
+> **latest date**, not from whichever was typed most recently. So if you are
+> correcting an entry dated 26 July, and you date your correction 26 June
+> because that is when the goods really arrived, the 26 July entry is still the
+> newest one and the list carries on showing the wrong status.
+>
+> Date the correction **today**, or at least on or after the entry you are
+> putting right, and write the real date in the note: *"Goods actually arrived
+> 26 June; the entry of 26 July was recorded in error."* The note is what tells
+> the story; the date is only there to decide which entry is current.
+>
+> Same-day entries keep the order you typed them in, so a correction dated the
+> same day as the entry it replaces still wins.
+
+**Closing a shipment finishes it.** Once the consignment is done with, use
+**Close shipment**. After that the timeline is frozen: the "Record an event"
+form is replaced by a panel explaining why, and nothing further can be added.
+This matches the rest of the system, where a posted SRV or SIV cannot be
+altered and an issued order cannot be edited.
+
+If something on a closed shipment turns out to be wrong, you can **re-open** it
+(`shipping.manage`). You must give a reason, which is kept in the activity log
+along with when it had been closed. Re-opening deletes nothing: every entry
+stays exactly where it is. The sequence is **re-open, record the correction,
+close it again**, and all three steps show up in the trail afterwards.
+
 The status picker offers the list configured in Administration → Shipment
 statuses, and always accepts free text. A consignment can stall somewhere nobody
 anticipated, and forcing the nearest wrong label would make the timeline lie.
