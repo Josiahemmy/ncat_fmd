@@ -74,7 +74,9 @@ class ReportsController extends Controller
             $rows = $this->reports->rows($report, $filters)->take(self::PDF_LIMIT)->values()->all();
 
             return Pdf::loadView('pdf.report', [
-                'crest' => public_path('brand/ncat-logo.png'),
+                // Print crest, matching PdfController::crest(). The 1024px web
+                // logo added about 1.2 MB to every rendered report.
+                'crest' => public_path('brand/ncat-logo-print.png'),
                 'title' => $title,
                 'columns' => $columns,
                 'rows' => $rows,

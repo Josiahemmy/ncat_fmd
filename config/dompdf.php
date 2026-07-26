@@ -109,8 +109,15 @@ return [
 
         /**
          * Whether to enable font subsetting or not.
+         *
+         * On. Off, dompdf embeds the whole DejaVuSans and DejaVuSans-Bold font
+         * programs in every document, which measured about 800 KB per voucher
+         * and had nothing to do with the crest. These vouchers are emailed to
+         * vendors in Austria and England, so that weight is paid at the far end
+         * on every send. Subsetting embeds only the glyphs a document actually
+         * uses, and NCAT's forms are plain Latin text and digits.
          */
-        'enable_font_subsetting' => false,
+        'enable_font_subsetting' => true,
 
         /**
          * The PDF rendering backend to use

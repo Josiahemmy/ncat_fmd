@@ -246,6 +246,32 @@ day is recoverable._
 - [ ] Also enable **cPanel-level weekly account backups** as a second line of
       defence, and note the restore procedure.
 
+### What is in the archive, and why `.env` is in it
+
+The backup holds the database dump **and** the application tree. Two things are
+worth knowing before a restore:
+
+- **`.env` is included, deliberately.** A restore needs it: it carries
+  `APP_KEY`, without which every encrypted value and every existing session
+  becomes unreadable, plus the database credentials. Keeping it in the archive
+  does not widen the exposure, because the archive sits on the same host as the
+  application, which already reads that same `.env`. Anyone who can read the
+  backup can already read the live file. **Treat a downloaded copy of the backup
+  as if it were the production credentials, because it contains them:** do not
+  email it, and do not leave it in a shared folder.
+- **Reproducible content is excluded** to keep the archive small: `vendor/`,
+  `node_modules/`, `public/build/`, `.git/`, `.github/`, `tests/`, and the
+  framework's own caches. After a restore, run `composer install --no-dev`,
+  `npm ci && npm run build`, then `php artisan optimize:clear`. What is **not**
+  excluded is `storage/app`, which holds the shipment event attachments
+  (airway bills, customs releases); those exist nowhere else.
+- **Untracked working directories are excluded and are not covered by any
+  backup.** `NCAT_Brand_Assets/`, `Aircrafts/` and `aircrafts_svgs/` are
+  gitignored, so they are not in the repository and never reach the server.
+  They are not a restore concern for production, but they should be committed
+  to the repository or archived in the department's own asset store, because at
+  present the only copies are on individual machines.
+
 ---
 
 ## Phase 9 — Final go-live smoke test
@@ -267,3 +293,38 @@ _Why: prove the four real workflows end-to-end before announcing go-live._
       is append-only, never edited).
 
 **Go live.** ✅
+
+---
+
+## Phase 10 — After go-live
+
+_Why: two things can only be checked once the system is carrying real work, and
+one of them decides whether the backup settings are still right._
+
+- [ ] **Check the backup health panel.** Administration → Overview now carries a
+      **Backups** panel showing the last successful backup and its size, how many
+      copies are retained, and total space used against the cap. Visible to anyone
+      holding `backups.view`; grant it to whoever actually watches the server.
+      Confirm in the first week that:
+      - the last successful backup is less than 24 hours old (the panel says
+        **Out of date** if it passes 48 hours, which means the cron is not firing);
+      - the panel does not say **History being trimmed**. That warning means the
+        size cap is deleting backups that the 14-day retention promised to keep,
+        so the real restore window is shorter than the setting suggests.
+- [ ] **Confirm real shipment volume with the department**, then revisit backup
+      sizing. Retention (14 days) and the cap (5000 MB) were set without knowing
+      how many consignments a month the FMD actually runs, and shipment event
+      attachments (airway bills, customs releases, up to 5 MB each) accumulate in
+      `storage/app`, which is inside the backup. Once the monthly figure is known:
+      estimate `attachments per month × average size × retention`, compare with
+      the cap, and raise the cap or shorten retention deliberately rather than
+      letting the cap silently decide. The health panel is the early warning, not
+      the answer.
+- [ ] **Loans: multi-item support is still unconfirmed.** Today a loan is a single
+      part. Nobody has yet confirmed whether the department ever lends or borrows
+      several parts on one agreement. Ask, and record the answer here. If the
+      answer is yes, the loan record needs splitting into a header with lines, and
+      that restructure is materially cheaper to do **before** real loans exist:
+      afterwards it means migrating live loan records and their stock movements,
+      which are append-only, rather than changing empty tables. Treat this as
+      time-sensitive rather than optional.

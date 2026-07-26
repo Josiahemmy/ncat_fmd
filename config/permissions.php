@@ -86,6 +86,7 @@ return [
                 'counters.view' => 'View document counters',
                 'counters.manage' => 'Manage document counters',
                 'approvals.manage' => 'Configure approval workflow levels',
+                'backups.view' => 'View backup health',
             ],
         ],
     ],

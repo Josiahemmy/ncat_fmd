@@ -4,11 +4,12 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
 import { AdminNav } from '@/Components/admin/AdminNav';
+import { BackupHealthPanel } from '@/Components/admin/BackupHealthPanel';
 import { PageHeader } from '@/Components/ui/PageHeader';
 import { Card } from '@/Components/ui/Card';
 import { usePermissions } from '@/lib/permissions';
 
-export default function AdminDashboard({ counts }) {
+export default function AdminDashboard({ counts, backupHealth = null }) {
     const { can } = usePermissions();
 
     const cards = [
@@ -52,6 +53,10 @@ export default function AdminDashboard({ counts }) {
                     );
                 })}
             </div>
+
+            {/* Null unless the viewer holds `backups.view`; the controller
+                decides, so there is nothing to hide client-side. */}
+            <BackupHealthPanel health={backupHealth} />
         </AppLayout>
     );
 }

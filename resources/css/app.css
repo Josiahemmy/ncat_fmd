@@ -28,7 +28,20 @@
         --popover: 0 0% 100%;
         --popover-foreground: 223 17% 8%;
 
-        --primary: 198 100% 44%;          /* Aviation Blue #009DE0  */
+        /* Aviation Blue darkened from 44% to 30% lightness (#009DE0 → #006B99).
+           The brand cyan is a 3:1 colour, not a 4.5:1 one: at 44% it measured
+           3.04:1 against white, which is correct for icons, borders, chart
+           series and focus rings but under the AA floor for the two roles this
+           token actually fills: solid button fills carrying white text, and
+           small text via `text-primary`. Hue and saturation are untouched, so
+           this is a darker step of the same brand colour rather than a
+           different one. 30% rather than the 31% minimum because the binding
+           case is `text-primary` on a `bg-primary/10` chip, which lands at
+           4.63:1 at 31% and 4.89:1 at 30%; the extra step keeps a future tint
+           change from silently dropping it back under.
+           #009DE0 itself is unchanged and still carries the 3:1 roles (see
+           --ring below and `ncat.blue` in tailwind.config.js). */
+        --primary: 198 100% 30%;          /* Aviation Blue, dark step #006B99 */
         --primary-foreground: 0 0% 100%;
 
         --secondary: 233 72% 22%;         /* Deep Navy #101A62      */
@@ -47,7 +60,10 @@
         --destructive: 4 74% 49%;         /* Error #D92D20          */
         --destructive-foreground: 0 0% 100%;
 
-        --success: 153 73% 31%;           /* #168A55                */
+        /* Darkened from 31% to 29% lightness. At 31% the "OK" and "Arrived"
+           status chips measured 4.43:1 on a white card, just under the AA
+           floor, and those chips are 12px. 29% measures 4.96:1. */
+        --success: 153 73% 29%;           /* #14804F                */
         --success-foreground: 0 0% 100%;
 
         --warning: 38 92% 50%;            /* #F59E0B                */

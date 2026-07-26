@@ -35,8 +35,13 @@ status.
 
 ### Demo login credentials
 
-Shared password (from `DemoSeeder::DEMO_PASSWORD`): **`DemoNCAT2026!`**
-Email domain (from `DemoSeeder::DEMO_DOMAIN`): **`@demo.ncatfmd.local`**
+Shared password (from `App\Services\Demo\DemoSeeder::DEMO_PASSWORD`): **`DemoNCAT2026!`**
+Email domain (from `App\Services\Demo\DemoSeeder::DEMO_DOMAIN`): **`@demo.ncatfmd.local`**
+
+> `DemoSeeder` here is the service class at `app/Services/Demo/DemoSeeder.php`,
+> which the `demo:seed` command calls. It is not a database seeder and will not
+> be found under `database/seeders/`, so `php artisan db:seed --class=DemoSeeder`
+> does not run it.
 
 | Name (as displayed) | Email | Role | Password |
 |---|---|---|---|

@@ -26,7 +26,10 @@ const C = {
     navy: '#101A62',
     amber: '#F59E0B',
     grid: 'rgba(16,26,98,0.08)',
-    axis: '#737B89',
+    // Steel at 45% lightness, matching --muted-foreground. The 49% value this
+    // replaces measured 4.08:1 on the page background, under the 4.5:1 floor
+    // that axis ticks and legend labels need as small text.
+    axis: '#68707D',
 };
 
 const axisProps = {
@@ -55,6 +58,14 @@ function ChartTooltip({ active, payload, label }) {
 
 const legendStyle = { fontSize: 12, color: C.axis, paddingTop: 8 };
 
+/**
+ * Recharts colours each legend label with its own series colour by default,
+ * which put 12px text in #009DE0 (2.91:1) and #F59E0B (2.05:1) on the page
+ * background. The series colour still identifies the series, but it does that
+ * in the swatch beside the label rather than in the label itself.
+ */
+const legendLabel = (value) => <span style={{ color: C.axis }}>{value}</span>;
+
 /** Stock in vs out, last 12 weeks — layered gradient area. */
 export function MovementsTrendChart({ data = [] }) {
     return (
@@ -74,7 +85,7 @@ export function MovementsTrendChart({ data = [] }) {
                 <XAxis dataKey="week" {...axisProps} />
                 <YAxis {...axisProps} width={44} />
                 <Tooltip content={<ChartTooltip />} cursor={{ stroke: C.grid }} />
-                <Legend wrapperStyle={legendStyle} />
+                <Legend wrapperStyle={legendStyle} formatter={legendLabel} />
                 <Area type="monotone" dataKey="in" name="Received" stroke={C.blue} strokeWidth={2.5} fill="url(#gradIn)" />
                 <Area type="monotone" dataKey="out" name="Issued" stroke={C.amber} strokeWidth={2.5} fill="url(#gradOut)" />
             </AreaChart>
@@ -117,7 +128,7 @@ export function ReceivingVsIssuingChart({ data = [] }) {
                 <XAxis dataKey="month" {...axisProps} />
                 <YAxis {...axisProps} width={44} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(0,157,224,0.06)' }} />
-                <Legend wrapperStyle={legendStyle} />
+                <Legend wrapperStyle={legendStyle} formatter={legendLabel} />
                 <Bar dataKey="received" name="Received" fill={C.blue} radius={[4, 4, 0, 0]} maxBarSize={22} />
                 <Bar dataKey="issued" name="Issued" fill={C.amber} radius={[4, 4, 0, 0]} maxBarSize={22} />
             </BarChart>

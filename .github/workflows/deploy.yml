@@ -55,8 +55,15 @@ jobs:
           --health-retries=20
 
     steps:
+      # checkout/setup-node/cache sit on majors that run under the Node 24
+      # actions runtime. The v4 line ran under Node 20, which GitHub has
+      # deprecated. This is the runtime the action itself executes in, and is a
+      # separate thing from `node-version` below, which is the toolchain that
+      # builds our assets and stays on 20 deliberately. All three take the same
+      # inputs as before; the Node 24 runtime wants runner 2.327.1 or newer,
+      # which ubuntu-latest satisfies.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ---- PHP ----
       - name: Set up PHP 8.2
@@ -70,7 +77,7 @@ jobs:
       # into the same path, so a shared key would let one job restore the other's
       # vendor tree.
       - name: Cache Composer packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: vendor
           key: composer-dev-${{ hashFiles('composer.lock') }}
@@ -82,7 +89,7 @@ jobs:
 
       # ---- Node ----
       - name: Set up Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -127,7 +134,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up PHP 8.2
         uses: shivammathur/setup-php@v2
@@ -137,7 +144,7 @@ jobs:
           coverage: none
 
       - name: Cache Composer packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: vendor
           key: composer-prod-${{ hashFiles('composer.lock') }}
@@ -149,7 +156,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
 
       - name: Set up Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
