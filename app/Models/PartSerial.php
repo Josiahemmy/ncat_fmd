@@ -11,9 +11,22 @@ class PartSerial extends Model
     use HasFactory;
 
     protected $fillable = [
-        'part_id', 'part_batch_id', 'serial_number', 'status',
+        'part_id', 'part_batch_id', 'serial_number', 'status', 'is_loaned',
         'current_store_id', 'current_aircraft_id', 'position',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_loaned' => 'boolean',
+        ];
+    }
+
+    /** Borrowed property, whichever store or aircraft it currently sits on. */
+    public function isLoanedProperty(): bool
+    {
+        return (bool) $this->is_loaned;
+    }
 
     public function part(): BelongsTo
     {

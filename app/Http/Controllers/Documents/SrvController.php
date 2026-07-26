@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Documents;
 use App\Http\Controllers\Controller;
 use App\Models\Part;
 use App\Models\PurchaseOrder;
+use App\Models\Shipment;
 use App\Models\Srv;
 use App\Models\Store;
 use App\Services\Documents\DocumentNumberService;
 use App\Services\Documents\SrvService;
+use App\Services\Shipping\ShipmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -40,16 +42,53 @@ class SrvController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Srv/Create', [
             'parts' => $this->partList(),
-            'stores' => Store::orderBy('sort_order')->get(['id', 'name', 'slug', 'type']),
+            // The loan holding locations are not receiving destinations: stock
+            // gets there by being lent or borrowed, never by an SRV.
+            'stores' => Store::whereNotIn('type', [Store::LOAN_OUT, Store::LOAN_IN])
+                ->orderBy('sort_order')->get(['id', 'name', 'slug', 'type']),
             'quarantineId' => Store::where('type', 'quarantine')->value('id'),
             'fuelStoreId' => Store::where('type', 'fuel')->value('id'),
             'nextNumber' => app(DocumentNumberService::class)->peek('srv'),
             'purchaseOrders' => $this->receivablePurchaseOrders(),
+            'shipmentPrefill' => $this->shipmentPrefill($request),
         ]);
+    }
+
+    /**
+     * "Create SRV from this shipment" (spec §12.6). The shipment supplies the
+     * vendor, the purchase-order link and the outstanding lines; from there the
+     * clerk is in the ordinary SRV form and the Quarantine flow is untouched.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function shipmentPrefill(Request $request): ?array
+    {
+        $id = $request->integer('shipment');
+
+        if (! $id) {
+            return null;
+        }
+
+        $shipment = Shipment::with('vendor:id,name')->find($id);
+
+        if (! $shipment || ! $shipment->hasArrived()) {
+            return null;
+        }
+
+        $isPurchase = $shipment->source_type === PurchaseOrder::class;
+
+        return [
+            'shipment_id' => $shipment->id,
+            'reference' => $shipment->reference,
+            'supplier' => $shipment->vendor?->name,
+            'purchase_order_id' => $isPurchase ? $shipment->source_id : null,
+            'lpo_or_petty_cash_ref' => $isPurchase ? $shipment->source?->po_number : null,
+            'lines' => app(ShipmentService::class)->srvPrefillLines($shipment),
+        ];
     }
 
     /**
@@ -92,6 +131,7 @@ class SrvController extends Controller
             'supplier' => $data['supplier'] ?? null,
             'lpo_or_petty_cash_ref' => $data['lpo_or_petty_cash_ref'] ?? null,
             'purchase_order_id' => $data['purchase_order_id'] ?? null,
+            'shipment_id' => $data['shipment_id'] ?? null,
             'head_of_receiving_dept' => $data['head_of_receiving_dept'] ?? null,
             'storekeeper' => $data['storekeeper'] ?? null,
             'remarks' => $data['remarks'] ?? null,
@@ -215,6 +255,7 @@ class SrvController extends Controller
             'supplier' => ['nullable', 'string', 'max:255'],
             'lpo_or_petty_cash_ref' => ['nullable', 'string', 'max:255'],
             'purchase_order_id' => ['nullable', 'exists:purchase_orders,id'],
+            'shipment_id' => ['nullable', 'exists:shipments,id'],
             'head_of_receiving_dept' => ['nullable', 'string', 'max:255'],
             'storekeeper' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string', 'max:2000'],

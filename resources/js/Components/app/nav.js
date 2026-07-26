@@ -1,5 +1,7 @@
 import {
+    ArrowLeftRight,
     ClipboardList,
+    Ship,
     LayoutDashboard,
     Plane,
     Warehouse,
@@ -33,6 +35,9 @@ export const navItems = [
     { label: 'Vendors', icon: Building2, routeName: 'vendors.index', group: 'operations', permission: 'vendors.view' },
     // One entry, two submodules: the index page tabs between them.
     { label: 'Orders', icon: FileText, routeName: 'purchase-orders.index', match: ['purchase-orders.*', 'repair-orders.*'], group: 'operations', permission: 'orders.view' },
+    { label: 'Shipping', icon: Ship, routeName: 'shipments.index', match: ['shipments.*'], group: 'operations', permission: 'shipping.view', badge: 'shipments' },
+    // One entry, two directions: the index page tabs between Outbound and Inbound.
+    { label: 'Loaners', icon: ArrowLeftRight, routeName: 'loans.index', match: ['loans.*'], group: 'operations', permission: 'loans.view', badge: 'loans' },
 
     { label: 'Parts', icon: Boxes, routeName: 'parts.index', group: 'catalogue', permission: 'parts.view' },
     { label: 'Opening Balances', icon: ClipboardList, routeName: 'opening-balances.index', group: 'catalogue', permission: 'stock.adjust' },

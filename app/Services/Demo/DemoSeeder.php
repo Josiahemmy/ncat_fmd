@@ -12,6 +12,7 @@ use App\Models\PurchaseOrder;
 use App\Models\RepairOrder;
 use App\Models\Requisition;
 use App\Services\Documents\ApprovalService;
+use App\Models\Shipment;
 use App\Models\Siv;
 use App\Models\SivItem;
 use App\Models\Srv;
@@ -24,6 +25,8 @@ use App\Services\Documents\PurchaseOrderService;
 use App\Services\Documents\RepairOrderService;
 use App\Services\Documents\SivService;
 use App\Services\Documents\SrvService;
+use App\Services\Shipping\ShipmentService;
+use App\Services\Stock\LoanService;
 use App\Services\Stock\SerialStateService;
 use App\Services\Stock\StockNotifier;
 use App\Services\Stock\StockService;
@@ -48,6 +51,7 @@ class DemoSeeder
         'stock_movements', 'stock_balances', 'part_serials', 'part_batches', 'parts',
         'work_orders', 'requisitions', 'srvs', 'srv_items', 'sivs', 'siv_items',
         'purchase_orders', 'purchase_order_lines', 'repair_orders', 'repair_order_lines',
+        'shipments', 'shipment_events', 'loans',
     ];
 
     public const DEMO_DOMAIN = '@demo.ncatfmd.local';
@@ -69,6 +73,8 @@ class DemoSeeder
         protected DemoMode $demo,
         protected PurchaseOrderService $purchaseOrders,
         protected RepairOrderService $repairOrders,
+        protected ShipmentService $shipments,
+        protected LoanService $loans,
     ) {
     }
 
@@ -101,6 +107,7 @@ class DemoSeeder
             $this->fuelOperations();
             $this->workOrdersAndRequisitions();
             $this->vendorsAndOrders();
+            $this->shippingAndLoans();
             $this->issuing();
             $this->shelfLifeAndAlerts();
             $this->refreshNotifications();
@@ -522,6 +529,115 @@ class DemoSeeder
             $this->repairOrders->issue($order, $this->storeman);
             $this->repairOrders->markAtVendor($order->refresh(), $this->storeman);
         });
+    }
+
+    // ---- Shipping + loans (Phase 8) --------------------------------------
+
+    /**
+     * Four narratives, each chosen to make one thing visible on screen:
+     * a consignment mid-flight and already late (the timeline with its ghost
+     * node), one that landed and produced an SRV (the handoff into Quarantine),
+     * an outbound loan past its due date (the alert), and a borrowed unit fitted
+     * to an aircraft (the loaned-property marking).
+     */
+    protected function shippingAndLoans(): void
+    {
+        $supplier = Vendor::where('name', 'DIAMOND AIRCRAFT INDUSTRIES GMBH')->first();
+        $order = $supplier ? PurchaseOrder::where('vendor_id', $supplier->id)->latest('id')->first() : null;
+
+        if ($supplier && $order) {
+            // Still in transit and three days past the promised date, so the
+            // dashboard alert fires and the timeline draws its overdue marker.
+            $this->at(24, 9, function () use ($supplier, $order) {
+                $shipment = $this->shipments->create([
+                    'vendor_id' => $supplier->id,
+                    'source_kind' => 'purchase_order',
+                    'source_id' => $order->id,
+                    'description' => 'Engine shock mounts and front harnesses against the July order.',
+                    'carrier' => 'DHL Aviation',
+                    'awb_reference' => '172-88104235',
+                    'expected_arrival_date' => Carbon::now()->addDays(21)->toDateString(),
+                    'status' => 'Shipped',
+                    'event_date' => Carbon::now()->toDateString(),
+                    'note' => 'Collected from the Wiener Neustadt facility.',
+                ], $this->storeman);
+
+                $this->shipmentEvent($shipment, 6, 'Arrived at local port', 'Landed at Lagos. Waiting on the clearing agent.');
+                $this->shipmentEvent($shipment, 12, 'Cleared customs', 'Duty paid, release note issued.');
+                $this->shipmentEvent($shipment, 17, 'In transit to NCAT', 'Handed to the local courier for Zaria.');
+            });
+
+            // Landed a month ago and receipted, so the SRV link on the detail
+            // page has something in it.
+            $this->at(38, 8, function () use ($supplier) {
+                $shipment = $this->shipments->create([
+                    'vendor_id' => $supplier->id,
+                    'description' => 'Consumables restock, shipped ahead of the main order.',
+                    'carrier' => 'Emirates SkyCargo',
+                    'awb_reference' => '176-55210987',
+                    'expected_arrival_date' => Carbon::now()->addDays(9)->toDateString(),
+                    'status' => 'Shipped',
+                    'event_date' => Carbon::now()->toDateString(),
+                    'note' => 'Two cartons, 46 kg.',
+                ], $this->storeman);
+
+                $this->shipmentEvent($shipment, 5, 'Cleared customs', null);
+                $this->shipmentEvent($shipment, 8, 'Arrived at NCAT', 'Received at the stores gate.', isArrival: true);
+
+                Carbon::setTestNow(Carbon::now()->addDays(8));
+                $srv = $this->srv([
+                    ['num' => 'AN960-416', 'qty' => 100, 'rate' => 350],
+                ], $this->store('quarantine'), supplier: $supplier->name, lpo: 'AWB 176-55210987');
+                $srv->update(['shipment_id' => $shipment->id]);
+            });
+        }
+
+        // Outbound: lent out six weeks ago, due back a fortnight ago. Lights the
+        // overdue-loans alert and gives the write-off action something to act on.
+        $this->at(42, 14, function () {
+            $this->loans->issueOutbound([
+                'party_name' => 'Kaduna Flying Club',
+                'party_contact' => 'Chief Engineer, 0803 000 0000',
+                'part_id' => $this->p('REM37BY')->id,
+                'quantity' => 6,
+                'from_store_id' => $this->store('bonded')->id,
+                'started_at' => Carbon::now()->toDateString(),
+                'due_date' => Carbon::now()->addDays(28)->toDateString(),
+                'notes' => 'Lent for their annual inspection. Replacement set on order.',
+            ], $this->storeman);
+        });
+
+        // Inbound: borrowed and fitted, so the parts-on-aircraft view shows a
+        // unit that is on the airframe and is not NCAT's.
+        $this->at(16, 11, function () {
+            $loan = $this->loans->receiveInbound([
+                'party_name' => 'Zaria Aero Maintenance',
+                'party_contact' => 'Stores, 0805 111 1111',
+                'part_id' => $this->p('GTX-335')->id,
+                'serial_text' => 'ZAM-LOAN-4471',
+                'quantity' => 1,
+                'started_at' => Carbon::now()->toDateString(),
+                'due_date' => Carbon::now()->addDays(45)->toDateString(),
+                'notes' => 'On loan while our own unit is at Brinkley for repair.',
+            ], $this->storeman);
+
+            $aircraft = $this->aircraft('5N-CAK');
+
+            if ($aircraft) {
+                $this->loans->installInbound($loan, $aircraft->id);
+            }
+        });
+    }
+
+    /** Append one backdated event to a shipment's timeline. */
+    protected function shipmentEvent(Shipment $shipment, int $daysAfterStart, string $status, ?string $note, bool $isArrival = false): void
+    {
+        $this->shipments->addEvent($shipment, [
+            'status' => $status,
+            'event_date' => Carbon::now()->addDays($daysAfterStart)->toDateString(),
+            'note' => $note,
+            'is_arrival' => $isArrival,
+        ], $this->storeman);
     }
 
     protected function req(string $status, ?Aircraft $ac, string $partNum, array $extra = []): Requisition

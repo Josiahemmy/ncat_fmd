@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Loan;
 use App\Models\PurchaseOrder;
 use App\Models\RepairOrder;
+use App\Models\Shipment;
 use App\Models\Vendor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -101,8 +103,38 @@ class VendorController extends Controller
                     'order_date' => $o->order_date?->toDateString(),
                     'status' => $o->status,
                 ]),
+            // Filled by Phase 8. Both lists are permission-gated: a user without
+            // the module never sees the tab contents even on a vendor they can
+            // otherwise read.
+            'shipments' => $request->user()->can('shipping.view')
+                ? Shipment::where('vendor_id', $vendor->id)->orderByDesc('id')->get()
+                    ->map(fn (Shipment $s) => [
+                        'id' => $s->id,
+                        'reference' => $s->reference,
+                        'current_status' => $s->current_status,
+                        'expected_arrival_date' => $s->expected_arrival_date?->toDateString(),
+                        'has_arrived' => $s->hasArrived(),
+                        'is_overdue' => $s->isOverdue(),
+                    ])
+                : collect(),
+            'loans' => $request->user()->can('loans.view')
+                ? Loan::where('vendor_id', $vendor->id)->with('part:id,part_number,description')
+                    ->orderByDesc('id')->get()
+                    ->map(fn (Loan $l) => [
+                        'id' => $l->id,
+                        'direction' => $l->direction,
+                        'item_label' => $l->itemLabel(),
+                        'quantity' => (float) $l->quantity,
+                        'started_at' => $l->started_at?->toDateString(),
+                        'due_date' => $l->due_date?->toDateString(),
+                        'status' => $l->displayStatus(),
+                        'is_overdue' => $l->isOverdue(),
+                    ])
+                : collect(),
             'can' => [
                 'manage' => $request->user()->can('vendors.manage'),
+                'shipping' => $request->user()->can('shipping.view'),
+                'loans' => $request->user()->can('loans.view'),
             ],
         ]);
     }

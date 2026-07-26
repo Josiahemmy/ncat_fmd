@@ -109,6 +109,9 @@ class SivController extends Controller
                     'qty_issued' => (float) $i->qty_issued,
                     'qty_issued_words' => Number::spell((int) $i->qty_issued),
                     'store' => $i->sourceStore->name,
+                    // Issued out of a store NCAT does not own, so the voucher
+                    // says so on its face rather than reading like NCAT stock.
+                    'is_loaned_property' => ! $i->sourceStore->owned,
                     'stores_folio' => $i->stores_folio,
                     'rate' => $i->rate, 'amount' => $i->amount,
                     'charging_code' => $i->charging_code,

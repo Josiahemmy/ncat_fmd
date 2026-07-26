@@ -22,12 +22,11 @@ const STATUS_VARIANTS = {
 const statusLabel = (s) => s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 /**
- * Vendor detail: an info card plus one tab per linked document family.
- * Shipments and Loans arrive in Phase 8, so the tab strip is driven by a list
- * and already accepts them; they are shown disabled rather than hidden so the
- * shape of the finished screen is visible.
+ * Vendor detail: an info card plus one tab per linked document family. Each tab
+ * renders its own columns, because a shipment and a repair order have almost
+ * nothing in common beyond belonging to the same vendor.
  */
-export default function VendorShow({ vendor, purchaseOrders, repairOrders, can }) {
+export default function VendorShow({ vendor, purchaseOrders, repairOrders, shipments, loans, can }) {
     const [tab, setTab] = useState('purchase');
     const [editing, setEditing] = useState(false);
 
@@ -43,11 +42,11 @@ export default function VendorShow({ vendor, purchaseOrders, repairOrders, can }
     const tabs = [
         { key: 'purchase', label: 'Purchase Orders', count: purchaseOrders.length },
         { key: 'repair', label: 'Repair Orders', count: repairOrders.length },
-        { key: 'shipments', label: 'Shipments', disabled: true },
-        { key: 'loans', label: 'Loans', disabled: true },
-    ];
+        can.shipping && { key: 'shipments', label: 'Shipments', count: shipments.length },
+        can.loans && { key: 'loans', label: 'Loans', count: loans.length },
+    ].filter(Boolean);
 
-    const rows = tab === 'purchase' ? purchaseOrders : repairOrders;
+    const orderRows = tab === 'purchase' ? purchaseOrders : repairOrders;
     const routeFor = tab === 'purchase' ? 'purchase-orders.show' : 'repair-orders.show';
 
     const save = (e) => {
@@ -188,54 +187,138 @@ export default function VendorShow({ vendor, purchaseOrders, repairOrders, can }
                     <div className="mb-4 flex flex-wrap gap-1 border-b border-border">
                         {tabs.map((t) => (
                             <button
-                                key={t.key} type="button" disabled={t.disabled}
+                                key={t.key} type="button"
                                 onClick={() => setTab(t.key)}
                                 className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                                     tab === t.key
                                         ? 'border-primary text-ncat-navy'
                                         : 'border-transparent text-muted-foreground hover:text-ncat-navy'
-                                } ${t.disabled ? 'cursor-not-allowed opacity-40 hover:text-muted-foreground' : ''}`}
-                                title={t.disabled ? 'Arrives in Phase 8' : undefined}
+                                }`}
                             >
                                 {t.label}
-                                {t.count !== undefined && (
-                                    <span className="ml-2 text-xs tabular-nums text-muted-foreground">{t.count}</span>
-                                )}
+                                <span className="ml-2 text-xs tabular-nums text-muted-foreground">{t.count}</span>
                             </button>
                         ))}
                     </div>
 
                     <Card className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Reference</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {rows.map((o) => (
-                                    <TableRow key={o.id}>
-                                        <TableCell className="whitespace-nowrap font-mono text-sm">
-                                            <Link href={route(routeFor, o.id)} className="font-medium text-ncat-navy hover:text-primary">
-                                                {o.number ?? 'Draft'}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap text-sm">{o.order_date}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={STATUS_VARIANTS[o.status] ?? 'neutral'}>
-                                                {statusLabel(o.status)}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        {!rows.length && (
-                            <p className="p-10 text-center text-sm text-muted-foreground">
-                                No {tab === 'purchase' ? 'purchase' : 'repair'} orders for this vendor yet.
-                            </p>
+                        {tab === 'shipments' && (
+                            <>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Reference</TableHead>
+                                            <TableHead>Latest status</TableHead>
+                                            <TableHead>Expected</TableHead>
+                                            <TableHead>State</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {shipments.map((s) => (
+                                            <TableRow key={s.id}>
+                                                <TableCell className="whitespace-nowrap font-mono text-sm">
+                                                    <Link href={route('shipments.show', s.id)} className="font-medium text-ncat-navy hover:text-primary">
+                                                        {s.reference}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="text-sm">{s.current_status ?? '—'}</TableCell>
+                                                <TableCell className="whitespace-nowrap text-sm tabular-nums">
+                                                    {s.expected_arrival_date ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={s.has_arrived ? 'success' : s.is_overdue ? 'destructive' : 'info'}>
+                                                        {s.has_arrived ? 'Arrived' : s.is_overdue ? 'Overdue' : 'In transit'}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                {!shipments.length && (
+                                    <p className="p-10 text-center text-sm text-muted-foreground">
+                                        No shipments from this vendor yet.
+                                    </p>
+                                )}
+                            </>
+                        )}
+
+                        {tab === 'loans' && (
+                            <>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Direction</TableHead>
+                                            <TableHead>Item</TableHead>
+                                            <TableHead className="text-right">Qty</TableHead>
+                                            <TableHead>Due</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loans.map((l) => (
+                                            <TableRow key={l.id}>
+                                                <TableCell className="whitespace-nowrap text-sm">
+                                                    <Link href={route('loans.show', l.id)} className="font-medium text-ncat-navy hover:text-primary">
+                                                        {l.direction === 'out' ? 'Lent out' : 'Borrowed'}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="text-sm">{l.item_label}</TableCell>
+                                                <TableCell className="text-right text-sm tabular-nums">{l.quantity}</TableCell>
+                                                <TableCell className="whitespace-nowrap text-sm tabular-nums">{l.due_date ?? '—'}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={
+                                                        l.is_overdue ? 'destructive'
+                                                            : l.status === 'returned' ? 'success' : 'info'
+                                                    }>
+                                                        {statusLabel(l.status)}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                {!loans.length && (
+                                    <p className="p-10 text-center text-sm text-muted-foreground">
+                                        No loans with this vendor yet.
+                                    </p>
+                                )}
+                            </>
+                        )}
+
+                        {(tab === 'purchase' || tab === 'repair') && (
+                            <>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Reference</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {orderRows.map((o) => (
+                                            <TableRow key={o.id}>
+                                                <TableCell className="whitespace-nowrap font-mono text-sm">
+                                                    <Link href={route(routeFor, o.id)} className="font-medium text-ncat-navy hover:text-primary">
+                                                        {o.number ?? 'Draft'}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-sm">{o.order_date}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={STATUS_VARIANTS[o.status] ?? 'neutral'}>
+                                                        {statusLabel(o.status)}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                {!orderRows.length && (
+                                    <p className="p-10 text-center text-sm text-muted-foreground">
+                                        No {tab === 'purchase' ? 'purchase' : 'repair'} orders for this vendor yet.
+                                    </p>
+                                )}
+                            </>
                         )}
                     </Card>
                 </div>

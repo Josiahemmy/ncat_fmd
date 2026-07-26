@@ -104,6 +104,16 @@ class HandleInertiaRequests extends Middleware
             $badges['quarantine'] = $counts['quarantine'];
         }
 
+        // Overdue counts only: a shipment in transit on schedule is not a
+        // work queue, and badging it would train people to ignore the badge.
+        if ($user->can('shipping.view')) {
+            $badges['shipments'] = $counts['shipments_overdue'];
+        }
+
+        if ($user->can('loans.view')) {
+            $badges['loans'] = $counts['loans_overdue'];
+        }
+
         return $badges;
     }
 

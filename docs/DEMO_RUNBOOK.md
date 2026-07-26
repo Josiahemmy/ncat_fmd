@@ -77,6 +77,8 @@ item. Walk the panel and name each one:
 - **Expiring soon (≤90 days)** — *Oil Filter* (`CH48110-1`) batch `OF-2405` (~45 days) and *Fuel Tank Sealant* (`PR-1440-B2`).
 - **Quarantine aging** — a sealant SRV sitting in the Quarantine store ~14 days awaiting certification.
 - **Pending approvals** — **2** submitted requisitions waiting on an approver (badge on the Requisitions sidebar item).
+- **Overdue shipments** — a consignment from Diamond Aircraft that is three days past its promised arrival date (badge on the Shipping sidebar item).
+- **Overdue loans** — six spark plugs lent to the Kaduna Flying Club, due back a fortnight ago (badge on the Loaners sidebar item).
 
 Point out that these are **derived live from the ledger**, not hand-set — this is the
 day-one operational picture the department currently reconstructs by hand from paper.
@@ -198,6 +200,79 @@ but no certification step for fuel. Show the fuel balance drop.
 
 > _Screenshot: Fuel Dump issue form (litres → aircraft) and the updated fuel balance_
 
+### 9a — Shipping: the consignment timeline
+
+**Be:** Femi Adewale. **Nav:** Shipping (`shipments.index`) → open the Diamond
+Aircraft shipment raised against the July purchase order.
+
+This is the screen that answers the question the department currently answers by
+searching an email thread: *where is our order?*
+
+Walk the timeline, newest at the top:
+
+- Each entry is a status, a date, a note and **who recorded it**.
+- The label on the rail between two entries is **how long the consignment sat
+  there**. Point at the gap between "Arrived at local port" and "Cleared
+  customs": that number is the customs delay, visible without anyone doing
+  arithmetic.
+- At the top of the rail is a **dashed marker**: the arrival that was expected
+  three days ago and has not happened. The absence is drawn, not just implied.
+
+Then say the part that matters to an auditor: **a recorded event cannot be
+edited or deleted.** Try it and there is nothing to click, because there is no
+route in the system that could. A mistake is corrected by recording a superseding
+event with a note. This is the same discipline as the stock ledger, for the same
+reason.
+
+Record one live event to show how quick it is: pick a status, set the date, add a
+note, save. It lands at the top of the rail immediately.
+
+> _Screenshot: the shipment timeline with the overdue marker and the elapsed-time labels_
+
+### 9b — Shipping → Receiving: the handoff
+
+**Nav:** Shipping → the **arrived** Diamond Aircraft consignment (the earlier
+one, already receipted).
+
+Show that this shipment carries an **Arrived at NCAT** entry and lists the SRV
+raised against it. Then explain the handoff on a live one: ticking "arrived at
+NCAT" on an event unlocks **Create SRV from this shipment**, which opens the
+ordinary SRV form pre-filled with the vendor, the order link and the outstanding
+quantities. From there it is the Quarantine flow shown in step 8, unchanged.
+
+The point to land: shipping does not replace receiving, it feeds it.
+
+> _Screenshot: the arrived shipment with its linked SRV, and the "Create SRV" action_
+
+### 9c — Loaners: both directions, and the honest number
+
+**Nav:** Loaners (`loans.index`).
+
+**Outbound tab.** The Kaduna Flying Club loan is showing as overdue. Explain what
+happened in the ledger when it was recorded: the six plugs came out of Bonded and
+into a holding location called *On Loan (Out)*. They are still NCAT's, so they
+still count towards stock value, but Bonded's balance dropped and nobody can
+issue them by mistake. If they never come back, **Write off** posts a real
+adjustment out of the ledger with a mandatory reason, and needs `stock.adjust`.
+Unreturned stock leaves the books honestly rather than sitting on loan forever.
+
+**Inbound tab.** NCAT is holding a borrowed transponder from Zaria Aero
+Maintenance, currently fitted to 5N-CAK.
+
+This is the demo's strongest single claim, so make it concretely:
+
+1. Note the dashboard **stock value** figure.
+2. Point out the borrowed transponder is worth more than a million naira.
+3. It is **not** in that figure, it is **not** in the Stock Summary report, and
+   it does **not** satisfy a reorder alert. Borrowing somebody's part does not
+   make NCAT richer and does not mean NCAT no longer needs to buy one.
+4. Open 5N-CAK's parts-on-aircraft view: the transponder is there, on the
+   airframe, **marked as loaned property with the lender named**.
+
+Allowed, tracked, and never counted as ours.
+
+> _Screenshot: the inbound loan next to the dashboard stock value, and the parts-on-aircraft row marked as loaned_
+
 ### 10 — Reports: run one and export
 
 **Be:** Femi Adewale (Stores Officer — holds `reports.view`; the Storekeeper does
@@ -262,9 +337,11 @@ php artisan demo:purge --i-understand-this-deletes-all-transactional-data --no-i
 1. **Backs up the database first** — if the backup fails, the purge **aborts** and
    nothing is deleted.
 2. **Truncates all transactional tables** in child→parent order (notifications,
-   activity log, stock movements/balances, SIV/SRV items + headers, requisitions,
-   work orders, part serials/batches, parts).
-3. **Deletes the demo users** (only accounts flagged `is_demo` — never real users).
+   activity log, stock movements/balances, loans, SIV/SRV items + headers,
+   shipment events + shipments, purchase/repair order lines + headers,
+   requisitions, work orders, part serials/batches, parts).
+3. **Deletes the demo users** (only accounts flagged `is_demo` — never real users)
+   and force-deletes the demo vendors, so no demo row survives soft-deleted.
 4. **Restores the document counters** to their pre-demo starting numbers and marks
    them **unconfirmed**.
 5. **Clears the demo flag** — demo mode goes OFF.
@@ -276,7 +353,10 @@ The command prints three tables:
   reports *"Purge verification FAILED"* and exits non-zero — do not proceed to
   go-live; investigate.
 - **Preserved reference data** — users, roles, aircraft, stores, ATA chapters,
-  document counters — should still be populated. Real reference data is untouched.
+  document counters, approval workflow, app settings — should still be populated.
+  Real reference data is untouched. Vendors survive as reference data too, so the
+  guarantee for them is narrower and reported separately: **no demo-flagged vendor
+  is left**, soft-deleted or otherwise.
 - **Document counters — restored, with `Confirmed = no`.** The starting numbers are
   back to their pre-demo values but flagged **unconfirmed**, which is your prompt to
   re-confirm the real next-numbers with the department before go-live.

@@ -284,20 +284,29 @@ the existing paper tally cards.
 
 ---
 
-## 9. Reports (5 reports · PDF / CSV export)
+## 9. Reports (7 reports · PDF / CSV export)
 
 Sidebar: **Reports** (`reports.view`).
 
-Five filterable reports are available:
+Seven filterable reports are available:
 
-1. **Stock Summary** — on-hand balances (per store).
+1. **Stock Summary** — on-hand balances (per store). Counts NCAT-owned stores
+   only, so borrowed stock never appears here.
 2. **Movement Register** — the stock-movement ledger.
 3. **Expiry Report** — expired and expiring shelf-life batches.
 4. **Per-Aircraft Consumption** — issued quantity by aircraft type.
 5. **Quarantine Aging** — how long items have sat awaiting certification.
+6. **Outstanding Loans** — loans still open in both directions, with days
+   overdue. Needs `loans.view` as well as `reports.view`.
+7. **Shipments In Transit** — consignments still on the way, with days since the
+   last recorded event and an overdue flag. Needs `shipping.view` as well as
+   `reports.view`.
+
+Reports 6 and 7 are hidden from the report list for anyone without the module
+permission, and are refused if the address is entered directly.
 
 Each report screen offers filters (store, part, aircraft type, user, date range,
-state, etc.). Every report **exports** to:
+state, direction, vendor, etc.). Every report **exports** to:
 
 - **CSV** — streams the full filtered set (UTF-8 with BOM so Excel renders ₦
   correctly).
@@ -342,11 +351,19 @@ From the Administration dashboard (`/admin`):
 - **Fleet — aircraft & types** (`aircraft.view` / `aircraft.manage`) — manage the
   26 aircraft and 6 types.
 - **Stores** (`stores.view` / `stores.manage`) — manage the four physical stores;
-  extensible.
+  extensible. Two further locations, **On Loan (Out)** and **Loaned In**, are
+  created by the system for the loans module and should not be edited by hand.
 - **ATA chapters** (`ata.view` / `ata.manage`) — the ATA-100 chapter list.
 - **Document counters** (`counters.view` / `counters.manage`) — the running
-  numbers for **Work Orders, Requisitions, SIV and SRV**. Set the starting values
-  here to continue the paper sequences. (See the go-live checklist.)
+  numbers for **Work Orders, Requisitions, SIV, SRV, Purchase Orders, Repair
+  Orders and Shipments**. Set the starting values here to continue the paper
+  sequences. (See the go-live checklist.)
+- **Approval workflow** (`approvals.manage`) — the ordered requisition approval
+  levels. See section 12.
+- **Order documents** (`orders.edit`) — the letterhead, contacts and notes
+  printed on the Purchase and Repair Order forms. See section 13.
+- **Shipment statuses** (`shipping.manage`) — the suggested status list the
+  shipment timeline offers. See section 14.
 - **Activity log** (`audit.view`) — the full audit trail (spatie/activitylog);
   logins/logouts and every mutation are recorded.
 
@@ -355,13 +372,192 @@ From the Administration dashboard (`/admin`):
 
 ---
 
+## 12. Approval workflow configuration (process owner)
+
+Administration → **Approval workflow** (`approvals.manage`).
+
+A requisition moves through an ordered list of approval levels. Each level names
+who may sign it off, and a requisition only reaches level 2 once level 1 has
+approved.
+
+**To configure the levels:**
+
+1. Open Administration → Approval workflow.
+2. Each row is one level, in order. Drag or use the arrows to change the order:
+   the order is the sequence approvers sign in.
+3. For each level, bind it to either a **permission** or a **role**. A permission
+   binding means anyone holding that permission can approve at that level; a role
+   binding means anyone in that role can.
+4. Save.
+
+**What the screen warns you about, and why it matters:**
+
+- **A level bound to a role with no active users blocks approvals outright.**
+  Nothing reaches that level's approver, and the Super Admin cannot step in on a
+  role binding. Fix it by adding a user to the role or rebinding the level.
+- **A level bound to a permission nobody holds** falls back to the Super Admin,
+  so approvals keep moving, but the screen flags it because the fallback is not
+  the intended process.
+- **A level with exactly one active user** is flagged as a coverage risk: when
+  that person is on leave, approvals stop.
+
+Grant `approvals.manage` to whoever owns process configuration, not to every
+approver. Changing this list changes who can sign off spending.
+
+Requisitions already in flight keep the chain they were submitted under, so
+reconfiguring the levels does not retroactively change a document mid-approval.
+
+---
+
+## 13. Vendors and Orders (Stores Officer)
+
+Sidebar: **Vendors** (`vendors.view` / `vendors.manage`) and **Orders**
+(`orders.view` / `.create` / `.edit` / `.close`).
+
+### Vendors
+
+A vendor is a supplier, a repair organisation, or both. The vendor record holds
+the address block printed on the order forms, so get it right once and every
+order is correct.
+
+The vendor detail page has a tab per document family: Purchase Orders, Repair
+Orders, Shipments and Loans. The last two only appear if you hold
+`shipping.view` / `loans.view`.
+
+A vendor named on any order is never deleted, only deactivated. Deactivating
+takes it out of every picker and leaves the paper trail readable.
+
+### Purchase Orders
+
+1. **Orders → New purchase order** (`orders.create`). Pick the vendor, set the
+   priority, and add a line per item with the quantity and timeline.
+2. Save. It is a **draft** and carries no reference: an abandoned draft must not
+   burn a number in the series.
+3. **Issue** it (`orders.edit`). The reference is minted at this point, in the
+   form `NCAT/FMD/PO/TS/{day}/{month}/{serial}`, and the commercial fields
+   freeze. A correction after issue is a cancel and a re-raise, which leaves both
+   documents in the audit trail.
+4. **Print / PDF** for the vendor.
+
+**Receiving against a purchase order** happens on the SRV, not here. On the SRV
+form, pick the order and the outstanding lines fill in; posting the SRV
+accumulates the received quantity against the matching order lines and moves the
+order to *partially received* or *received*. The ledger stays the single source
+of truth for what actually arrived.
+
+### Repair Orders
+
+Same shape, with a different reference series
+(`NCAT/FMD/RO/TS/{month}/{serial}`) and a different life: a repair order sends a
+specific serial away for an action.
+
+1. Raise it, usually from the removal section of a requisition, and issue it.
+2. Mark it **at vendor** when the unit ships.
+3. **Book units back** when they return, with a per-line repair note and a
+   disposition of serviceable or scrapped. A serviceable unit books into
+   **Quarantine** and follows the normal certification route, exactly like a
+   newly purchased part.
+
+---
+
+## 14. Shipping and Loaners (Stores Officer / Storekeeper)
+
+### 14a. Shipping — tracking a consignment on its way
+
+Sidebar: **Shipping** (`shipping.view` / `shipping.manage`).
+
+Raise a shipment when a vendor tells you goods are on the way. It can be raised
+against a purchase order, against a repair order, or on its own.
+
+1. **Shipping → New shipment** (`shipping.manage`). Pick the vendor, optionally
+   pick the order it fulfils, and record the carrier, AWB and expected arrival
+   date. Add the opening event describing where the consignment is now.
+2. The reference `SHP-{YY}-{serial}` is assigned immediately. A shipment has no
+   draft state, so there is nothing to withhold.
+3. As you hear from the vendor, agent or courier, **record an event** on the
+   detail page: a status, a date and a note.
+
+**The timeline is append-only.** A recorded event cannot be edited or removed,
+for the same reason a stock movement cannot: the record of what was believed,
+and when, is evidence. To correct a mistake, record another event saying what
+changed. There is no route in the system that could do otherwise.
+
+The status picker offers the list configured in Administration → Shipment
+statuses, and always accepts free text. A consignment can stall somewhere nobody
+anticipated, and forcing the nearest wrong label would make the timeline lie.
+
+**Reading the timeline:** newest entry at the top. The label on the rail between
+two entries is how long the consignment sat between them, so a run of long gaps
+is visible at a glance. If the shipment is past its expected arrival date and has
+not arrived, a dashed marker sits at the top of the rail showing the event that
+should have happened.
+
+**Overdue shipments** appear on the dashboard alert panel, in the notifications
+bell, and as a badge on the sidebar entry.
+
+**When the goods land:** record an event and tick **"This is the consignment
+arriving at NCAT"**. That stops it counting as overdue and unlocks **Create SRV
+from this shipment**, which opens the ordinary SRV form pre-filled with the
+vendor, the order link and the outstanding quantities from the order. Adjust the
+quantities to what actually turned up and post it. From there the goods go into
+Quarantine and follow the normal certification route. The shipment records which
+SRVs were raised against it.
+
+### 14b. Loaners — lending out and borrowing in
+
+Sidebar: **Loaners** (`loans.view` / `loans.manage`). One screen, two tabs,
+because the two directions work differently.
+
+**Outbound (another organisation borrows from NCAT).**
+
+Record it and the stock moves out of Bonded or Dope into a holding location
+called **On Loan (Out)**. The issuing store's balance drops exactly as it would
+on an issue, the units stay in NCAT's books because NCAT still owns them, and a
+serialised unit stops reading as "in store" while it is away.
+
+- **Record return** posts the units back into the store they left, not into
+  whichever store is picked at the time.
+- **Write off** is for a loan that is never coming back. It needs `stock.adjust`
+  (not just `loans.manage`) and a mandatory reason, because it posts a real
+  adjustment out of the ledger. That is the point: unreturned stock leaves the
+  books honestly instead of sitting on loan forever.
+
+Only Bonded and Dope can lend. Quarantine and the Fuel Dump cannot, the same rule
+that governs issuing.
+
+**Inbound (NCAT borrows from another organisation).**
+
+Record the lender, the item, the quantity and the due date. If the item is in the
+parts catalogue, link it; if it is not, describe it, because a borrowed item does
+not have to be in NCAT's catalogue.
+
+Borrowed stock is held in a location flagged as **not NCAT property**. It is
+tracked and it can be issued, but it is excluded from:
+
+- the dashboard stock-value figure,
+- the Stock Summary report,
+- reorder, minimum and maximum level alerts.
+
+Holding fifty of someone else's units does not mean the department no longer
+needs to order any, and it does not make NCAT's stock worth more.
+
+A borrowed unit **can** be fitted to an aircraft. Use **Fit to an aircraft** on
+the loan. It then shows on the parts-on-aircraft view marked as loaned property,
+with the lender named, and any issue voucher covering it is marked the same way.
+
+**Overdue loans** in either direction appear on the dashboard alert panel, the
+bell and the sidebar badge. Both directions also appear on the vendor detail
+page's Loans tab.
+
+---
+
 ## Appendix — Roles at a glance
 
 | Role | What they do here |
 | --- | --- |
 | **Super Admin** | Everything, including all Administration. Bypasses permission checks. |
-| **Stores Officer** | Certifies quarantine, transfers/adjusts stock, posts fuel, approves requisitions, posts SIV, manages parts, views reports. |
-| **Storekeeper** | Posts Receiving (SRV) and Issuing (SIV), posts fuel, views stores/stock/parts/tally. **Does not certify** (segregation of duties). |
+| **Stores Officer** | Certifies quarantine, transfers/adjusts stock, posts fuel, approves requisitions, posts SIV, manages parts and vendors, raises and issues orders, tracks shipments and loans, views reports. |
+| **Storekeeper** | Posts Receiving (SRV) and Issuing (SIV), posts fuel, tracks shipments and loans, views stores/stock/parts/tally/orders. **Does not certify** (segregation of duties). |
 | **Engineer/Technician** | Raises Work Orders and Requisitions, completes removals, views stock/parts/tally/aircraft. |
 | **Viewer** | Read-only across stores, documents, parts, tally and reports. |
 

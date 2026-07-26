@@ -16,7 +16,7 @@ class Srv extends Model
 
     protected $fillable = [
         'srv_number', 'srv_date', 'destination_store_id', 'supplier', 'lpo_or_petty_cash_ref',
-        'purchase_order_id', 'head_of_receiving_dept', 'storekeeper', 'status', 'posted_at',
+        'purchase_order_id', 'shipment_id', 'head_of_receiving_dept', 'storekeeper', 'status', 'posted_at',
         'posted_by_user_id', 'created_by_user_id', 'remarks',
     ];
 
@@ -37,6 +37,12 @@ class Srv extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    /** The consignment these goods arrived on, when receiving started there. */
+    public function shipment(): BelongsTo
+    {
+        return $this->belongsTo(Shipment::class);
     }
 
     public function destinationStore(): BelongsTo

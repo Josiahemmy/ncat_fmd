@@ -15,10 +15,17 @@ use Illuminate\Support\Facades\DB;
  */
 class StockAlertService
 {
-    /** Total on-hand across all stores, as a correlated subquery. */
+    /**
+     * Total on-hand across NCAT-owned stores, as a correlated subquery.
+     *
+     * Borrowed stock is excluded on purpose: holding fifty of someone else's
+     * units does not mean the department no longer needs to order any.
+     */
     protected function onHandExpr(): string
     {
-        return '(select coalesce(sum(quantity), 0) from stock_balances where stock_balances.part_id = parts.id)';
+        return '(select coalesce(sum(stock_balances.quantity), 0) from stock_balances '
+            .'inner join stores on stores.id = stock_balances.store_id '
+            .'where stock_balances.part_id = parts.id and stores.owned = 1)';
     }
 
     /** Parts at or below their reorder level. */

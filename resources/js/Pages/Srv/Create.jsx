@@ -24,17 +24,31 @@ const blankItem = {
     invoice_no: '', acct_code: '', serials: [], batch_no: '', batch_year: '', expiry_date: '',
 };
 
-export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, nextNumber, purchaseOrders = [] }) {
+export default function SrvCreate({
+    parts, stores, quarantineId, fuelStoreId, nextNumber, purchaseOrders = [], shipmentPrefill = null,
+}) {
+    // Arriving from "Create SRV from this shipment": the vendor, the order link
+    // and the outstanding lines come across so the clerk confirms quantities
+    // rather than retyping the consignment. Everything stays editable.
     const form = useForm({
         srv_date: new Date().toISOString().slice(0, 10),
         destination_store_id: quarantineId ?? '',
-        supplier: '',
-        lpo_or_petty_cash_ref: '',
-        purchase_order_id: '',
+        supplier: shipmentPrefill?.supplier ?? '',
+        lpo_or_petty_cash_ref: shipmentPrefill?.lpo_or_petty_cash_ref ?? '',
+        purchase_order_id: shipmentPrefill?.purchase_order_id ?? '',
+        shipment_id: shipmentPrefill?.shipment_id ?? '',
         head_of_receiving_dept: '',
         storekeeper: '',
         remarks: '',
-        items: [{ ...blankItem }],
+        items: shipmentPrefill?.lines?.length
+            ? shipmentPrefill.lines.map((l) => ({
+                ...blankItem,
+                part_id: l.part_id ?? '',
+                purchase_order_line_id: l.purchase_order_line_id,
+                quantity: l.quantity,
+                supplier_details: l.description ?? '',
+            }))
+            : [{ ...blankItem }],
     });
 
     const selectedOrder = purchaseOrders.find((o) => String(o.id) === String(form.data.purchase_order_id));
@@ -103,6 +117,17 @@ export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, ne
                 description={<>Store Receipt Voucher for receiving goods into stores. Will be reserved as <span className="font-mono font-semibold text-ncat-navy">{nextNumber}</span>.</>}
                 icon={PackagePlus}
             />
+
+            {shipmentPrefill && (
+                <p className="mb-4 max-w-5xl rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-ncat-navy">
+                    Started from shipment{' '}
+                    <Link href={route('shipments.show', shipmentPrefill.shipment_id)} className="font-mono font-semibold text-primary hover:underline">
+                        {shipmentPrefill.reference}
+                    </Link>
+                    . The lines below are the outstanding quantities on its order. Adjust them to what
+                    actually turned up.
+                </p>
+            )}
 
             <Card className="max-w-5xl p-6">
                 <form onSubmit={submit} className="space-y-8">
