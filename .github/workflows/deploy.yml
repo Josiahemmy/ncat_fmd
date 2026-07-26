@@ -27,6 +27,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # The suite runs in about three minutes. A test that shells out to an
+    # external tool (a DB dump, say) can block instead of failing, and without
+    # this the job sat for GitHub's six-hour default before anyone was told.
+    # Fail fast enough to read as a fault rather than as a slow queue.
+    timeout-minutes: 20
+
     # MySQL 8 service so the test gate runs against the same engine as
     # production (shared cPanel MySQL). Local dev keeps in-memory SQLite via
     # phpunit.xml; CI overrides the connection with the DB_* env vars on the
@@ -115,6 +121,7 @@ jobs:
   # ---------------------------------------------------------------------------
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: test
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
 

@@ -5,6 +5,7 @@ namespace Tests\Feature\Shipping;
 use App\Models\ShipmentEventAttachment;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\Demo\DemoBackup;
 use App\Services\Shipping\ShipmentService;
 use Database\Seeders\DocumentCounterSeeder;
 use Database\Seeders\PermissionSeeder;
@@ -35,6 +36,20 @@ class ShipmentAttachmentTest extends TestCase
         $this->seed(StoreSeeder::class);
         $this->seed(DocumentCounterSeeder::class);
         Storage::fake('local');
+
+        // demo:purge takes a safety backup first, and the real one shells out to
+        // a dump tool. Under sqlite that is a cheap file copy, but on the MySQL
+        // CI gate it runs mysqldump, which blocks with no timeout configured and
+        // hangs the suite rather than failing it. DemoPurgeTest owns the
+        // backup-abort behaviour; what is under test here is that the purge
+        // clears attachment rows and their files, so stub the backup out.
+        $this->app->bind(DemoBackup::class, fn () => new class extends DemoBackup
+        {
+            public function run(): bool
+            {
+                return true;
+            }
+        });
     }
 
     protected function clerk(): User
