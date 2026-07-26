@@ -37,6 +37,17 @@ return [
                 'issues.post' => 'Post issuing (SIV)',
             ],
         ],
+        'orders' => [
+            'label' => 'Vendors & Orders',
+            'permissions' => [
+                'vendors.view' => 'View vendors',
+                'vendors.manage' => 'Manage vendors',
+                'orders.view' => 'View purchase & repair orders',
+                'orders.create' => 'Create purchase & repair orders',
+                'orders.edit' => 'Edit and issue purchase & repair orders',
+                'orders.close' => 'Close or cancel purchase & repair orders',
+            ],
+        ],
         'catalogue' => [
             'label' => 'Catalogue',
             'permissions' => [
@@ -84,12 +95,15 @@ return [
             'receiving.view', 'issues.view', 'issues.post',
             'parts.view', 'parts.manage', 'tally.view',
             'reports.view', 'aircraft.view', 'ata.view',
+            'vendors.view', 'vendors.manage',
+            'orders.view', 'orders.create', 'orders.edit', 'orders.close',
         ],
         'Storekeeper' => [
             'stores.view', 'stock.view',
             'receiving.view', 'receiving.post', 'issues.view', 'issues.post',
             'fuel.post', 'requisitions.view', 'work_orders.view',
             'parts.view', 'tally.view', 'aircraft.view', 'ata.view',
+            'vendors.view', 'orders.view',
         ],
         'Engineer/Technician' => [
             'work_orders.view', 'work_orders.create',
@@ -100,6 +114,7 @@ return [
             'stores.view', 'stock.view', 'work_orders.view', 'requisitions.view',
             'receiving.view', 'issues.view', 'parts.view', 'tally.view',
             'reports.view', 'aircraft.view', 'ata.view',
+            'vendors.view', 'orders.view',
         ],
     ],
 ];

@@ -8,6 +8,8 @@ use App\Models\DocumentCounter;
 use App\Models\Part;
 use App\Models\PartBatch;
 use App\Models\PartSerial;
+use App\Models\PurchaseOrder;
+use App\Models\RepairOrder;
 use App\Models\Requisition;
 use App\Services\Documents\ApprovalService;
 use App\Models\Siv;
@@ -16,7 +18,10 @@ use App\Models\Srv;
 use App\Models\SrvItem;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Services\Documents\DocumentNumberService;
+use App\Services\Documents\PurchaseOrderService;
+use App\Services\Documents\RepairOrderService;
 use App\Services\Documents\SivService;
 use App\Services\Documents\SrvService;
 use App\Services\Stock\SerialStateService;
@@ -42,6 +47,7 @@ class DemoSeeder
     public const TRANSACTIONAL_TABLES = [
         'stock_movements', 'stock_balances', 'part_serials', 'part_batches', 'parts',
         'work_orders', 'requisitions', 'srvs', 'srv_items', 'sivs', 'siv_items',
+        'purchase_orders', 'purchase_order_lines', 'repair_orders', 'repair_order_lines',
     ];
 
     public const DEMO_DOMAIN = '@demo.ncatfmd.local';
@@ -61,6 +67,8 @@ class DemoSeeder
         protected DocumentNumberService $counters,
         protected StockNotifier $notifier,
         protected DemoMode $demo,
+        protected PurchaseOrderService $purchaseOrders,
+        protected RepairOrderService $repairOrders,
     ) {
     }
 
@@ -92,6 +100,7 @@ class DemoSeeder
             $this->transfersAndAdjustments();
             $this->fuelOperations();
             $this->workOrdersAndRequisitions();
+            $this->vendorsAndOrders();
             $this->issuing();
             $this->shelfLifeAndAlerts();
             $this->refreshNotifications();
@@ -423,6 +432,96 @@ class DemoSeeder
         });
         // closed
         $this->at(40, 9, fn () => $this->req('closed', $this->aircraft('5N-CAM'), 'CH48110-1', ['approved_at' => Carbon::now()->subDays(2), 'issued_at' => Carbon::now()->subDay()]));
+    }
+
+    // ---- Vendors and orders (Phase 7) -----------------------------------
+
+    /**
+     * Two vendors, one purchase order part-way through receiving, and one repair
+     * order carrying the serial the removal narrative already sent away. The RO
+     * stamps its real reference over the placeholder the requisition was seeded
+     * with, so the demo shows the back-link the way the live flow produces it.
+     *
+     * Vendors are reference data rather than transactional, so they are flagged
+     * `is_demo` and the purger removes them by that flag.
+     */
+    protected function vendorsAndOrders(): void
+    {
+        $supplier = Vendor::firstOrCreate(
+            ['name' => 'DIAMOND AIRCRAFT INDUSTRIES GMBH'],
+            [
+                'type' => 'supplier',
+                'address' => "DIAMOND AIRCRAFT INDUSTRIES GMBH,\nNIKOLAUS-AUGUST-OTTO-STRAUBE 5,\n2700WIENERNEUSTADT,\nAUSTRIA.",
+                'country' => 'Austria', 'email' => 'parts@diamond-air.example',
+                'contact_person' => 'Spares Desk', 'is_active' => true, 'is_demo' => true,
+            ],
+        );
+
+        $repairer = Vendor::firstOrCreate(
+            ['name' => 'BRINKLEY AEROSPACE SERVICE LIMITED'],
+            [
+                'type' => 'repair_organization',
+                'address' => "Brinkley Aerospace Service Limited,\nUnit 1, Montgomery Way,\nBiggleswade,\nBedfordshire,\nSG 18 8UB,\nEngland.",
+                'country' => 'England', 'email' => 'repairs@brinkley.example',
+                'contact_person' => 'Repair Desk', 'is_active' => true, 'is_demo' => true,
+            ],
+        );
+
+        // Purchase order raised three weeks ago, half of line 1 delivered.
+        $this->at(21, 10, function () use ($supplier) {
+            $order = PurchaseOrder::create([
+                'order_date' => Carbon::now()->toDateString(),
+                'vendor_id' => $supplier->id,
+                'aircraft_type_label' => 'DIAMOND DA-40NG/DA-42NG',
+                'priority' => 'very_urgent',
+                'created_by_user_id' => $this->storeman->id,
+            ]);
+
+            $this->purchaseOrders->saveLines($order, [
+                ['description' => 'ENGINE SHOCK MOUNTS (INCLUDING BOLTS, WASHERS AND LOCK NUTS)',
+                    'part_number' => 'D44-7106-00-56', 'qty_to_order' => 4,
+                    'line_status' => 'NEW', 'timeline_month' => 7, 'timeline_year' => 2026],
+                ['description' => '3 POINT SAFETY HARNESS, FRONT PILOT LH/RH',
+                    'part_number' => '5-01-1C0710', 'qty_to_order' => 2,
+                    'line_status' => 'NEW', 'timeline_month' => 7, 'timeline_year' => 2026],
+            ]);
+
+            $this->purchaseOrders->issue($order, $this->storeman);
+
+            $this->purchaseOrders->applyReceipt(
+                $order->refresh(),
+                [$order->lines->first()->id => 2],
+                null,
+                $this->storeman,
+            );
+        });
+
+        // Repair order for the transponder the removal narrative booked out.
+        $serial = PartSerial::where('serial_number', 'SN-GTX-OLD-01')->first();
+
+        if (! $serial) {
+            return;
+        }
+
+        $this->at(20, 11, function () use ($repairer, $serial) {
+            $order = RepairOrder::create([
+                'order_date' => Carbon::now()->toDateString(),
+                'vendor_id' => $repairer->id,
+                'aircraft_type_label' => 'DIAMOND DA40G',
+                'priority' => 'very_urgent',
+                'created_by_user_id' => $this->storeman->id,
+            ]);
+
+            $this->repairOrders->saveLines($order, [[
+                'description' => 'TRANSPONDER, MODE S',
+                'part_serial_id' => $serial->id,
+                'qty' => 1,
+                'action' => 'REPAIR',
+            ]]);
+
+            $this->repairOrders->issue($order, $this->storeman);
+            $this->repairOrders->markAtVendor($order->refresh(), $this->storeman);
+        });
     }
 
     protected function req(string $status, ?Aircraft $ac, string $partNum, array $extra = []): Requisition

@@ -88,4 +88,35 @@ class DocumentNumberingTest extends TestCase
         $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
         $this->numbers()->reserve('does_not_exist');
     }
+
+    /**
+     * The two order series pad differently on the paper. The PO prints the day
+     * and month unpadded (sample NCAT/FMD/PO/TS/30/6/307); the RO prints a
+     * zero-padded month and no day at all (sample NCAT/FMD/RO/TS/03/298).
+     */
+    public function test_order_references_match_the_sample_formats(): void
+    {
+        $june30 = Carbon::parse('2026-06-30');
+        $march4 = Carbon::parse('2026-03-04');
+
+        $this->assertSame('NCAT/FMD/PO/TS/30/6/308', $this->numbers()->reservePurchaseOrder($june30));
+        $this->assertSame('NCAT/FMD/PO/TS/4/3/309', $this->numbers()->reservePurchaseOrder($march4));
+
+        $this->assertSame('NCAT/FMD/RO/TS/03/299', $this->numbers()->reserveRepairOrder($march4));
+        $this->assertSame('NCAT/FMD/RO/TS/06/300', $this->numbers()->reserveRepairOrder($june30));
+    }
+
+    public function test_order_serials_are_unique_and_gapless_under_repetition(): void
+    {
+        $at = Carbon::parse('2026-06-30');
+        $refs = [];
+
+        for ($i = 0; $i < 30; $i++) {
+            $refs[] = $this->numbers()->reservePurchaseOrder($at);
+        }
+
+        $this->assertCount(30, array_unique($refs));
+        $this->assertSame('NCAT/FMD/PO/TS/30/6/308', $refs[0]);
+        $this->assertSame('NCAT/FMD/PO/TS/30/6/337', $refs[29], 'serials must be gapless');
+    }
 }

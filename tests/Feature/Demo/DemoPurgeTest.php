@@ -4,8 +4,10 @@ namespace Tests\Feature\Demo;
 
 use App\Models\Aircraft;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Services\Demo\DemoBackup;
 use App\Services\Demo\DemoMode;
+use App\Services\Demo\DemoPurger;
 use App\Services\Demo\DemoSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +32,7 @@ class DemoPurgeTest extends TestCase
     protected const TRANSACTIONAL = [
         'stock_movements', 'stock_balances', 'part_serials', 'part_batches', 'parts',
         'work_orders', 'requisitions', 'srvs', 'srv_items', 'sivs', 'siv_items',
+        'purchase_orders', 'purchase_order_lines', 'repair_orders', 'repair_order_lines',
         'notifications', 'activity_log',
     ];
 
@@ -111,6 +114,27 @@ class DemoPurgeTest extends TestCase
 
         app(DemoMode::class)->bust();
         $this->assertFalse(app(DemoMode::class)->isActive());
+    }
+
+    /**
+     * Vendors are reference data, so the purge cannot empty the table. The
+     * guarantee for them is narrower: nothing demo-flagged survives, including
+     * soft-deleted rows, and a vendor the department added stays put.
+     */
+    public function test_purge_removes_demo_vendors_and_keeps_real_ones(): void
+    {
+        $real = Vendor::factory()->create(['name' => 'REAL DEPARTMENT VENDOR']);
+
+        $this->seedDemo();
+
+        $this->assertGreaterThan(0, Vendor::where('is_demo', true)->count(), 'precondition: demo vendors seeded');
+
+        $this->artisan('demo:purge', self::SAFE)->assertSuccessful();
+
+        $this->assertSame(0, Vendor::withTrashed()->where('is_demo', true)->count());
+        $this->assertSame(0, app(DemoPurger::class)->report()['demo_vendors']);
+        $this->assertTrue(app(DemoPurger::class)->report()['clean']);
+        $this->assertDatabaseHas('vendors', ['id' => $real->id, 'name' => 'REAL DEPARTMENT VENDOR']);
     }
 
     public function test_purge_refuses_without_the_safety_flag(): void

@@ -54,6 +54,26 @@ class SerialStateService
         ], $user, "Removed serial {$serial->serial_number} → {$to}".($reason ? " ({$reason})" : ''));
     }
 
+    /**
+     * The general guarded transition, for callers outside the install/remove
+     * pair. Phase 7 uses it to book units back from a repair order: serviceable
+     * to `in_store` in Quarantine, or written off to `scrapped`.
+     *
+     * @param  array<string, mixed>  $attributes  extra columns to set alongside the status
+     */
+    public function transitionTo(
+        PartSerial $serial,
+        string $to,
+        ?User $user = null,
+        ?string $message = null,
+        array $attributes = [],
+    ): PartSerial {
+        return $this->transition(
+            $serial, $to, $attributes, $user,
+            $message ?? "Serial {$serial->serial_number} moved {$serial->status} to {$to}",
+        );
+    }
+
     protected function transition(PartSerial $serial, string $to, array $attrs, ?User $user, string $message): PartSerial
     {
         $from = $serial->status;

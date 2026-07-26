@@ -20,21 +20,53 @@ function Field({ label, error, children }) {
 }
 
 const blankItem = {
-    part_id: '', quantity: '', supplier_details: '', fol_no: '', rate: '', amount: '',
+    part_id: '', purchase_order_line_id: '', quantity: '', supplier_details: '', fol_no: '', rate: '', amount: '',
     invoice_no: '', acct_code: '', serials: [], batch_no: '', batch_year: '', expiry_date: '',
 };
 
-export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, nextNumber }) {
+export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, nextNumber, purchaseOrders = [] }) {
     const form = useForm({
         srv_date: new Date().toISOString().slice(0, 10),
         destination_store_id: quarantineId ?? '',
         supplier: '',
         lpo_or_petty_cash_ref: '',
+        purchase_order_id: '',
         head_of_receiving_dept: '',
         storekeeper: '',
         remarks: '',
         items: [{ ...blankItem }],
     });
+
+    const selectedOrder = purchaseOrders.find((o) => String(o.id) === String(form.data.purchase_order_id));
+
+    /**
+     * Picking an order pre-fills the supplier and rebuilds the item rows from
+     * its outstanding lines, so receiving against a PO is a matter of trimming
+     * quantities rather than retyping the order. Clearing it leaves the rows
+     * alone: the goods still arrived, they just stop counting against an order.
+     */
+    const pickOrder = (id) => {
+        const order = purchaseOrders.find((o) => String(o.id) === String(id));
+
+        form.setData((data) => ({
+            ...data,
+            purchase_order_id: id,
+            supplier: order ? (order.vendor ?? data.supplier) : data.supplier,
+            lpo_or_petty_cash_ref: order ? (order.po_number ?? data.lpo_or_petty_cash_ref) : data.lpo_or_petty_cash_ref,
+            items: order && order.lines.length
+                ? order.lines.map((l) => ({
+                    ...blankItem,
+                    part_id: l.part_id ?? '',
+                    purchase_order_line_id: l.id,
+                    quantity: l.outstanding,
+                    supplier_details: l.description ?? '',
+                }))
+                : data.items.map((it) => ({ ...it, purchase_order_line_id: '' })),
+        }));
+    };
+
+    const outstandingFor = (lineId) => selectedOrder?.lines
+        .find((l) => String(l.id) === String(lineId))?.outstanding;
 
     const partById = (id) => parts.find((p) => String(p.id) === String(id));
     const hasFuel = form.data.items.some((it) => { const p = partById(it.part_id); return p && p.is_fuel; });
@@ -101,6 +133,20 @@ export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, ne
                             <Field label="SRV date" error={form.errors.srv_date}>
                                 <Input type="date" value={form.data.srv_date} onChange={(e) => form.setData('srv_date', e.target.value)} />
                             </Field>
+                            <Field label="Purchase order" error={form.errors.purchase_order_id}>
+                                <Select value={form.data.purchase_order_id} onChange={(e) => pickOrder(e.target.value)}>
+                                    <option value="">Not against a purchase order</option>
+                                    {purchaseOrders.map((o) => (
+                                        <option key={o.id} value={o.id}>
+                                            {o.po_number} · {o.vendor}
+                                        </option>
+                                    ))}
+                                </Select>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Picking one fills the rows from its outstanding lines and books the quantities
+                                    back onto the order when this voucher is posted.
+                                </p>
+                            </Field>
                             <Field label="LPO / Petty cash voucher no." error={form.errors.lpo_or_petty_cash_ref}>
                                 <Input value={form.data.lpo_or_petty_cash_ref} onChange={(e) => form.setData('lpo_or_petty_cash_ref', e.target.value)} />
                             </Field>
@@ -151,8 +197,30 @@ export default function SrvCreate({ parts, stores, quarantineId, fuelStoreId, ne
                                                     </Select>
                                                 </Field>
                                             </div>
+                                            {selectedOrder && (
+                                                <div className="sm:col-span-2">
+                                                    <Field label="Purchase order line" error={form.errors[`items.${i}.purchase_order_line_id`]}>
+                                                        <Select
+                                                            value={it.purchase_order_line_id}
+                                                            onChange={(e) => setItem(i, { purchase_order_line_id: e.target.value })}
+                                                        >
+                                                            <option value="">Not against a line</option>
+                                                            {selectedOrder.lines.map((l) => (
+                                                                <option key={l.id} value={l.id}>
+                                                                    {l.line_no}. {l.part_number ?? l.description} · {l.outstanding} outstanding
+                                                                </option>
+                                                            ))}
+                                                        </Select>
+                                                    </Field>
+                                                </div>
+                                            )}
                                             <Field label="Quantity" error={form.errors[`items.${i}.quantity`]}>
                                                 <Input type="number" step="any" min="0" value={it.quantity} onChange={(e) => setItem(i, { quantity: e.target.value })} />
+                                                {it.purchase_order_line_id && outstandingFor(it.purchase_order_line_id) !== undefined && (
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {outstandingFor(it.purchase_order_line_id)} outstanding on this line.
+                                                    </p>
+                                                )}
                                             </Field>
                                             <Field label="Rate" error={form.errors[`items.${i}.rate`]}>
                                                 <Input type="number" step="any" min="0" value={it.rate} onChange={(e) => setItem(i, { rate: e.target.value })} />

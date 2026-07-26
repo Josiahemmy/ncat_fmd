@@ -49,6 +49,7 @@ class ApprovalWorkflowController extends Controller
             'permissions' => $this->approvals->bindablePermissions(),
             'roles' => \Spatie\Permission\Models\Role::orderBy('name')->pluck('name'),
             'inFlight' => $this->approvals->inFlightCount(),
+            'holders' => $this->approvals->bindingHolderCounts(),
         ]);
     }
 

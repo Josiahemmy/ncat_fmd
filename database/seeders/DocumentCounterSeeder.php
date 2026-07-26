@@ -44,6 +44,16 @@ class DocumentCounterSeeder extends Seeder
                 'next_number' => 294, 'padding' => 4, 'confirmed' => false,
                 'notes' => 'SIV printed 4-digit. Sample 0293. Confirm with department.',
             ],
+            [
+                'series' => 'purchase_order', 'label' => 'Purchase Order Serial', 'prefix' => null,
+                'next_number' => 308, 'padding' => 0, 'confirmed' => false,
+                'notes' => 'Tail of NCAT/FMD/PO/TS/{D}/{M}/{serial}. Sample 307, unpadded. Confirm with department.',
+            ],
+            [
+                'series' => 'repair_order', 'label' => 'Repair Order Serial', 'prefix' => null,
+                'next_number' => 299, 'padding' => 0, 'confirmed' => false,
+                'notes' => 'Tail of NCAT/FMD/RO/TS/{MM}/{serial}. Sample 298, unpadded. Confirm with department.',
+            ],
         ];
 
         foreach ($counters as $counter) {

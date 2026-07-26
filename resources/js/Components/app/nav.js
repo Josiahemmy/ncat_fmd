@@ -11,6 +11,8 @@ import {
     Boxes,
     BarChart3,
     ShieldCheck,
+    Building2,
+    FileText,
 } from 'lucide-react';
 
 /**
@@ -28,6 +30,9 @@ export const navItems = [
     { label: 'Receiving', icon: PackagePlus, routeName: 'receiving.index', group: 'operations', permission: 'receiving.view' },
     { label: 'Issuing', icon: PackageMinus, routeName: 'issuing.index', group: 'operations', permission: 'issues.view' },
     { label: 'Tally Cards', icon: BookOpenCheck, routeName: 'tally-cards.index', group: 'operations', permission: 'tally.view' },
+    { label: 'Vendors', icon: Building2, routeName: 'vendors.index', group: 'operations', permission: 'vendors.view' },
+    // One entry, two submodules: the index page tabs between them.
+    { label: 'Orders', icon: FileText, routeName: 'purchase-orders.index', match: ['purchase-orders.*', 'repair-orders.*'], group: 'operations', permission: 'orders.view' },
 
     { label: 'Parts', icon: Boxes, routeName: 'parts.index', group: 'catalogue', permission: 'parts.view' },
     { label: 'Opening Balances', icon: ClipboardList, routeName: 'opening-balances.index', group: 'catalogue', permission: 'stock.adjust' },

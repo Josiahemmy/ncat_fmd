@@ -6,9 +6,16 @@ import { navGroups, navItems } from '@/Components/app/nav';
 import { usePermissions } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
-function isActive(routeName) {
+/**
+ * `match` lets one entry own a family of routes. Orders links to Purchase
+ * Orders but must stay lit on the Repair Orders screens too, which are the same
+ * module to the user even though they are separate route names.
+ */
+function isActive(item) {
     try {
-        return typeof route !== 'undefined' && route().current(routeName);
+        if (typeof route === 'undefined') return false;
+
+        return (item.match ?? [item.routeName]).some((name) => route().current(name));
     } catch {
         return false;
     }
@@ -70,7 +77,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onNavigate }) {
                             )}
                             <ul className="space-y-1">
                                 {items.map((item) => {
-                                    const active = isActive(item.routeName);
+                                    const active = isActive(item);
                                     const Icon = item.icon;
                                     const count = item.badge ? badges[item.badge] : 0;
                                     return (

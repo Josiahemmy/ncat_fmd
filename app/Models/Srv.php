@@ -16,8 +16,8 @@ class Srv extends Model
 
     protected $fillable = [
         'srv_number', 'srv_date', 'destination_store_id', 'supplier', 'lpo_or_petty_cash_ref',
-        'head_of_receiving_dept', 'storekeeper', 'status', 'posted_at', 'posted_by_user_id',
-        'created_by_user_id', 'remarks',
+        'purchase_order_id', 'head_of_receiving_dept', 'storekeeper', 'status', 'posted_at',
+        'posted_by_user_id', 'created_by_user_id', 'remarks',
     ];
 
     protected function casts(): array
@@ -31,6 +31,12 @@ class Srv extends Model
     public function items(): HasMany
     {
         return $this->hasMany(SrvItem::class);
+    }
+
+    /** The order these goods were received against, when there is one. */
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 
     public function destinationStore(): BelongsTo

@@ -169,7 +169,18 @@ export default function RequisitionShow({ requisition, approval, flow }) {
                             <Box n={18} label="Repair Facility / Work Shop" value={r.repair_facility} />
                             <div className="grid grid-cols-1 divide-y divide-ncat-navy sm:grid-cols-2 sm:divide-x sm:divide-y-0 print:divide-black">
                                 <Box n={19} label="Date Sent" value={r.date_sent} />
-                                <Box n={20} label="Repair Order (if applicable)" value={r.repair_order_ref} />
+                                <Box
+                                    n={20}
+                                    label="Repair Order (if applicable)"
+                                    value={r.repair_order ? (
+                                        <Link
+                                            href={route('repair-orders.show', r.repair_order.id)}
+                                            className="text-primary hover:underline print:text-inherit print:no-underline"
+                                        >
+                                            {r.repair_order.ro_number}
+                                        </Link>
+                                    ) : r.repair_order_ref}
+                                />
                             </div>
                         </div>
                         <div className="border-t border-ncat-navy p-2 text-center text-[0.7rem] font-semibold uppercase leading-snug sm:border-t-0 print:border-black">
