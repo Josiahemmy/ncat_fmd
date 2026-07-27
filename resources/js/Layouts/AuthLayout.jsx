@@ -26,7 +26,6 @@ export default function AuthLayout({ title, subtitle, children }) {
                 />
                 {/* Deep-navy legibility wash + brand tint */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-ncat-midnight via-ncat-midnight/85 to-ncat-navy/60" />
-                <div className="absolute inset-0 bg-grid-faint opacity-[0.10] [background-size:44px_44px]" />
                 <div className="absolute -left-20 top-1/4 size-96 rounded-full bg-ncat-blue/20 blur-[100px]" />
                 <div className="absolute -right-10 bottom-10 size-80 rounded-full bg-ncat-cyan/15 blur-[90px]" />
 

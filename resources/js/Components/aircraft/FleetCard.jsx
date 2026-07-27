@@ -34,8 +34,7 @@ export function FleetCard({ type, index = 0 }) {
                 className="relative block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
                 <div className="relative h-44 overflow-hidden bg-ncat-hero">
-                    {/* faint grid + accent glow */}
-                    <div className="absolute inset-0 bg-[size:22px_22px] bg-grid-faint opacity-[0.15]" />
+                    {/* accent glow */}
                     <div className="absolute -right-10 top-4 size-40 rounded-full bg-ncat-cyan/20 blur-3xl transition-opacity duration-500 group-hover:opacity-100" />
                     <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
                         <Plane className="size-3.5" />

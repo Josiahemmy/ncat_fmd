@@ -13,6 +13,7 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -67,6 +68,35 @@ class DemoPurgeTest extends TestCase
 
         foreach (self::TRANSACTIONAL as $t) {
             $this->assertSame(0, DB::table($t)->count(), "{$t} must be empty after purge");
+        }
+    }
+
+    /**
+     * The seeded paperwork lands on disk as well as in the table, so the purge
+     * has to remove both. A surviving file is not just clutter: it is a customs
+     * document belonging to demonstration data sitting on the same host as the
+     * real system, which is exactly what the guarantee is meant to prevent.
+     */
+    public function test_purge_removes_seeded_attachment_files_from_disk(): void
+    {
+        $this->seedDemo();
+
+        $attachments = \App\Models\ShipmentEventAttachment::all();
+        $this->assertGreaterThanOrEqual(1, $attachments->count(), 'precondition: paperwork was seeded');
+
+        $paths = $attachments->map(fn ($a) => [$a->disk, $a->path])->all();
+        foreach ($paths as [$disk, $path]) {
+            $this->assertTrue(Storage::disk($disk)->exists($path), 'precondition: file on disk');
+        }
+
+        $this->artisan('demo:purge', self::SAFE)->assertSuccessful();
+
+        $this->assertSame(0, \App\Models\ShipmentEventAttachment::count());
+        foreach ($paths as [$disk, $path]) {
+            $this->assertFalse(
+                Storage::disk($disk)->exists($path),
+                "attachment file survived the purge: {$path}",
+            );
         }
     }
 

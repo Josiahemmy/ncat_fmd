@@ -73,6 +73,72 @@ class DemoSeedTest extends TestCase
         $this->assertTrue($inbound->serial?->is_loaned, 'and marked as loaned property');
     }
 
+    /**
+     * The demo exists to show management working modules, and a list with one
+     * row does not do that. These are floors rather than exact counts, so the
+     * narrative can be adjusted without the test becoming a nuisance, but they
+     * fail if a module is ever thinned back to a single example.
+     */
+    public function test_seed_puts_enough_volume_in_the_new_modules_to_demonstrate(): void
+    {
+        $this->artisan('demo:seed')->assertSuccessful();
+
+        $this->assertGreaterThanOrEqual(10, \App\Models\Vendor::count(), 'vendor book');
+        $this->assertGreaterThanOrEqual(8, \App\Models\PurchaseOrder::count(), 'purchase orders');
+        $this->assertGreaterThanOrEqual(5, \App\Models\RepairOrder::count(), 'repair orders');
+        $this->assertGreaterThanOrEqual(6, \App\Models\Shipment::count(), 'shipments');
+        $this->assertGreaterThanOrEqual(6, \App\Models\Loan::count(), 'loans');
+
+        // Filters need something to separate, so the statuses have to vary.
+        $poStatuses = \App\Models\PurchaseOrder::pluck('status')->unique();
+        foreach (['draft', 'issued', 'partially_received', 'received', 'closed', 'cancelled'] as $status) {
+            $this->assertTrue($poStatuses->contains($status), "a purchase order in status {$status}");
+        }
+
+        $roStatuses = \App\Models\RepairOrder::pluck('status')->unique();
+        foreach (['draft', 'issued', 'at_vendor', 'returned', 'closed'] as $status) {
+            $this->assertTrue($roStatuses->contains($status), "a repair order in status {$status}");
+        }
+
+        // Every vendor must carry the marker, because that is the only thing
+        // that gets them removed again: they are reference data, not
+        // transactional, so the purge does not truncate the table.
+        $this->assertSame(
+            \App\Models\Vendor::count(),
+            \App\Models\Vendor::where('is_demo', true)->count(),
+            'an unflagged demo vendor would survive demo:purge',
+        );
+
+        $this->assertGreaterThanOrEqual(1, \App\Models\Shipment::whereNotNull('closed_at')->count(),
+            'a closed shipment, so the frozen timeline can be shown');
+        $this->assertGreaterThanOrEqual(2, \App\Models\Srv::whereNotNull('shipment_id')->count(),
+            'two arrivals that produced receipt vouchers');
+        $this->assertGreaterThanOrEqual(1, \App\Models\Srv::whereNotNull('purchase_order_id')->count(),
+            'a receipt booked against a purchase order, so the linkage is visible');
+    }
+
+    /**
+     * The attachment feature is only demonstrable if the seeded data actually
+     * carries paperwork. The files are generated at seed time, so this also
+     * checks they reached disk rather than only the table.
+     */
+    public function test_seed_attaches_real_paperwork_to_a_shipment_event(): void
+    {
+        $this->artisan('demo:seed')->assertSuccessful();
+
+        $attachments = \App\Models\ShipmentEventAttachment::all();
+        $this->assertGreaterThanOrEqual(1, $attachments->count(), 'paperwork on a shipment event');
+
+        foreach ($attachments as $a) {
+            $this->assertTrue(
+                \Illuminate\Support\Facades\Storage::disk($a->disk)->exists($a->path),
+                "seeded attachment {$a->original_name} has no file on disk",
+            );
+            $this->assertGreaterThan(0, $a->size_bytes);
+            $this->assertSame('application/pdf', $a->mime_type);
+        }
+    }
+
     /** The proof that borrowed stock never inflates what NCAT reports it owns. */
     public function test_the_demo_inbound_loan_stays_out_of_stock_value(): void
     {

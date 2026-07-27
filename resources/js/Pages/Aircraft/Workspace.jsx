@@ -39,7 +39,6 @@ export default function Workspace({ aircraft, stats, links, workOrders, requisit
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                 className="relative mb-5 overflow-hidden rounded-2xl bg-ncat-hero p-6 shadow-glass-lg sm:p-8"
             >
-                <div className="absolute inset-0 bg-[size:26px_26px] bg-grid-faint opacity-[0.12]" />
                 <div className="absolute -right-16 -top-10 size-64 rounded-full bg-ncat-cyan/20 blur-3xl" />
                 {aircraft.image && (
                     <motion.img

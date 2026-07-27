@@ -125,8 +125,11 @@ export default {
                 'ncat-hero': 'linear-gradient(135deg, #050A23 0%, #101A62 55%, #0B2E6B 100%)',
                 'ncat-accent': 'linear-gradient(120deg, #009DE0 0%, #13B8F0 50%, #00C2FF 100%)',
                 'ncat-gold': 'linear-gradient(120deg, #FFB800 0%, #FFD600 100%)',
-                'grid-faint':
-                    'linear-gradient(hsl(var(--border) / 0.6) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / 0.6) 1px, transparent 1px)',
+                // `grid-faint` was removed deliberately. It drew a faint ruled
+                // grid over the login artwork, the aircraft type cards and the
+                // aircraft workspace, and read as boxes rather than as texture.
+                // The definition is gone as well as its three usages so it
+                // cannot be reintroduced by autocomplete.
             },
             boxShadow: {
                 glass: '0 8px 30px -12px rgba(16, 26, 98, 0.25), 0 2px 8px -4px rgba(16, 26, 98, 0.12)',
