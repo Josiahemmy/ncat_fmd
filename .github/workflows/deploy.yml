@@ -12,10 +12,15 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      seed_demo:
-        description: 'Also seed demonstration data on the server (manual runs only)'
-        type: boolean
-        default: false
+      demo_data:
+        description: 'Demonstration data (manual runs only)'
+        type: choice
+        default: none
+        options:
+          - none
+          - 'status  (read-only: what is on the server now?)'
+          - 'seed    (populate an empty system)'
+          - 'reseed  (replace an existing demo with a fresh one)'
 
 concurrency:
   # Keyed per ref so a pull-request run neither queues behind nor cancels a
@@ -254,29 +259,42 @@ jobs:
       # ---- Demonstration data (manual runs only) ----
       # Never fires on a push. It exists because the demo narrative has to be
       # created ON the server: deploying the seeder only ships the code, and
-      # until `demo:seed` runs there is nothing in the transactional tables to
-      # show anyone.
+      # until it is run there is nothing in the transactional tables to show.
       #
-      # Safe to tick by mistake. `demo:seed` refuses outright if transactional
-      # data already exists, so it cannot land demo rows on top of real work;
-      # that refusal fails this step loudly rather than proceeding.
+      # `status` is read-only and always safe. Run it first if you are unsure.
       #
-      # There is deliberately no matching purge button. `demo:purge` empties
-      # every transactional table, and a one-click way to do that to production
-      # is a hazard worth not building. Purge stays a considered SSH action, as
-      # written up in docs/ADMIN_GO_LIVE_CHECKLIST.md.
-      - name: Seed demonstration data
-        if: github.event_name == 'workflow_dispatch' && inputs.seed_demo
+      # `seed` refuses when transactional data already exists, so it cannot drop
+      # demo rows on top of real work.
+      #
+      # `reseed` purges and re-seeds, and refuses unless demo mode is currently
+      # ON, which is only true when demo:seed created the data and nothing has
+      # purged it since. So it can only ever delete rows the demo itself wrote.
+      # A database backup is taken before anything is removed.
+      #
+      # There is deliberately no purge option. `demo:purge` empties every
+      # transactional table and leaves the system empty; a one-click way to do
+      # that to production is a hazard worth not building. Purge stays a
+      # considered SSH action, as written up in docs/ADMIN_GO_LIVE_CHECKLIST.md.
+      - name: Demonstration data
+        if: github.event_name == 'workflow_dispatch' && inputs.demo_data != 'none'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          # The dropdown labels carry an explanation for whoever is choosing, so
+          # take the action from the first word rather than the whole string.
+          DEMO_ACTION: ${{ inputs.demo_data }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -lc "
-            set -e
-            cd '$DEPLOY_PATH'
-            php artisan demo:seed
-          "
+          action="${DEMO_ACTION%% *}"
+          echo "Demonstration data action: $action"
+          case "$action" in
+            status) remote='php artisan demo:status' ;;
+            seed)   remote='php artisan demo:status; php artisan demo:seed' ;;
+            reseed) remote='php artisan demo:status; php artisan demo:reseed --i-understand-this-replaces-the-current-demo' ;;
+            *) echo "::error::Unrecognised action '$action'."; exit 1 ;;
+          esac
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" \
+            "cd '$DEPLOY_PATH' && $remote"
 
       # ---- Health check ----
       - name: Health check
