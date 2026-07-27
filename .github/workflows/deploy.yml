@@ -10,7 +10,12 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      seed_demo:
+        description: 'Also seed demonstration data on the server (manual runs only)'
+        type: boolean
+        default: false
 
 concurrency:
   # Keyed per ref so a pull-request run neither queues behind nor cancels a
@@ -244,6 +249,33 @@ jobs:
             php artisan route:cache
             php artisan view:cache
             [ -L public/storage ] || php artisan storage:link
+          "
+
+      # ---- Demonstration data (manual runs only) ----
+      # Never fires on a push. It exists because the demo narrative has to be
+      # created ON the server: deploying the seeder only ships the code, and
+      # until `demo:seed` runs there is nothing in the transactional tables to
+      # show anyone.
+      #
+      # Safe to tick by mistake. `demo:seed` refuses outright if transactional
+      # data already exists, so it cannot land demo rows on top of real work;
+      # that refusal fails this step loudly rather than proceeding.
+      #
+      # There is deliberately no matching purge button. `demo:purge` empties
+      # every transactional table, and a one-click way to do that to production
+      # is a hazard worth not building. Purge stays a considered SSH action, as
+      # written up in docs/ADMIN_GO_LIVE_CHECKLIST.md.
+      - name: Seed demonstration data
+        if: github.event_name == 'workflow_dispatch' && inputs.seed_demo
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -lc "
+            set -e
+            cd '$DEPLOY_PATH'
+            php artisan demo:seed
           "
 
       # ---- Health check ----
